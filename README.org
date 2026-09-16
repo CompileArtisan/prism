@@ -1,0 +1,2 @@
+
+i2_28b result — GCN beating IDW/Kriging by 15–23%

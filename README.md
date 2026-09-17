@@ -50,6 +50,6 @@ Four families of models compete against each other:
 11. **Cross-scenario generalization**: train the model on Building A, then test it — with zero further training — on Building B, in both directions. This checks whether the model learned genuine "physics" (distance/LOS → signal) rather than memorizing one building's layout. A small **calibration** step (a handful of test-building points) can correct for absolute power-level offsets between buildings, but those calibration points are excluded from the final scored results to avoid leaking test answers into evaluation.
 12. **Sparse-regime benchmark**: the final deliverable — specifically tests the hypothesis that GNNs beat classical methods most when you have very few measurements, since that's when their ability to share information across the graph gives them an edge over purely local methods like IDW.
 
-# Result
-i2_28b result — GCN beating IDW/Kriging by 15–23%
+# Results
+- i2_28b result — GCN beating IDW/Kriging by 15–23%
 

@@ -51,5 +51,14 @@ Four families of models compete against each other:
 12. **Sparse-regime benchmark**: the final deliverable — specifically tests the hypothesis that GNNs beat classical methods most when you have very few measurements, since that's when their ability to share information across the graph gives them an edge over purely local methods like IDW.
 
 # Results
-- i2_28b result — GCN beating IDW/Kriging by 15–23%
+## i2_28b result: GCN beating IDW/Kriging by 15–25%
+- GCN got RMSE ≈ 3.0–3.4 dB versus IDW/Kriging at ≈ 3.9–4.3 dB across densities
+- Coverage accuracy (correctly calling a spot "covered" vs "dead zone") also improved with GCN over the baselines.
+- For i2_28b at low density (30 pts), GCN beats IDW by ~15%, which is inside the 10–30% range the notebook's own hypothesis predicted.
 
+## i1_2p5 result: IDW and Kriging beat GCN/GAT outright at every density
+- At 200 points, Kriging gets 0.80 dB RMSE vs. GCN's 1.17 and GAT's 1.09.
+- At 30 points, plain GCN is actually worse than IDW (1.25 vs 1.12 dB).
+- i1_2p5 behaves differently because its RSS only spans about -89 to -78.5 dBm (a 10 dB range), while i2_28b spans -135 to -100 dBm (a 35 dB range, much more structure from walls/LOS transitions).
+- It was found that a near-flat target is easy for any method, including dumb ones, which explains why the GNN's extra modeling power doesn't pay off there.
+- The Hybrid-GNN-IDW model (which leans on an IDW prior and just learns a correction) stays competitive.

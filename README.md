@@ -62,3 +62,4 @@ Four families of models compete against each other:
 - i1_2p5 behaves differently because its RSS only spans about -89 to -78.5 dBm (a 10 dB range), while i2_28b spans -135 to -100 dBm (a 35 dB range, much more structure from walls/LOS transitions).
 - It was found that a near-flat target is easy for any method, including dumb ones, which explains why the GNN's extra modeling power doesn't pay off there.
 - The Hybrid-GNN-IDW model (which leans on an IDW prior and just learns a correction) stays competitive.
+

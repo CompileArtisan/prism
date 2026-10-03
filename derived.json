@@ -552,5 +552,821 @@
   "source": "convention: pool identity check",
   "cell": "N5",
   "legacy": null
+ },
+ "power_definition|i1_2p4||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.20 dB, std 1.12)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i1_2p4||": {
+  "value": -27.1969849418019,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i1_2p4||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i1_2p4||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (0/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
+ "max_points|i1_2p4||": {
+  "value": 20000,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 20000, 'per_m2': 20000}",
+  "cell": "N4",
+  "legacy": 5000
+ },
+ "tune_exclude_n|i1_2p4||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "pool_fingerprint|i1_2p5||": {
+  "value": "296f776f209f0ab20d54ebe41b62ce80",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i1_2p4||": {
+  "value": "1f287d189337a18b15575b7825c7651b",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i3_2p4||": {
+  "value": "da9042d2742ed35388618ac444dc8bf7",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i3_60||": {
+  "value": "b856478419dd98fa4931bc409f869581",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "idw_power_raw|i2_28b|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|20|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|20|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|20|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|20|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|20|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|20|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i2_28b|107|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|107|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|107|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|107|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|107|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|107|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i2_28b|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|327|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|327|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|327|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|327|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i2_28b||": {
+  "value": 6.460055209012564,
+  "source": "derived: fitted power variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i1_2p5|20|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|20|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|20|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p5|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|107|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|107|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p5|327|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|327|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|327|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|327|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i1_2p5||": {
+  "value": 3.586979443128746,
+  "source": "derived: fitted exponential variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i1_2p4|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p4|20|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p4|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p4|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p4|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p4|20|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p4|20|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p4|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p4|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p4|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p4|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p4|107|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p4|107|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p4|107|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p4|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p4|327|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p4|327|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p4|327|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p4|327|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p4|327|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p4|327|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i1_2p4||": {
+  "value": 3.5608835935438305,
+  "source": "derived: fitted exponential variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i3_2p4|20|": {
+  "value": 2,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|20|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|20|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|20|": {
+  "value": "spherical",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_2p4|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|107|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|107|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|327|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|327|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|327|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|327|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i3_2p4||": {
+  "value": 2.3124583445239275,
+  "source": "derived: fitted linear variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i3_60|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|20|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|20|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|20|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_60|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_60|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|327|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|327|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|327|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|327|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i3_60||": {
+  "value": 5.038566660064439,
+  "source": "derived: fitted gaussian variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "knn_k|i1_2p5|20|": {
+  "value": 4,
+  "source": "derived: inner CV on pool, n=20, scores {3: np.float64(1.45), 4: np.float64(1.4), 6: np.float64(1.43), 8: np.float64(1.42), 10: np.float64(1.41), 15: np.float64(1.44)}",
+  "cell": "N7",
+  "legacy": 6
  }
 }

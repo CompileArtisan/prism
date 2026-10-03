@@ -258,21 +258,21 @@
   "legacy": 0
  },
  "spatial_buffer_m|||": {
-  "value": null,
-  "source": "assumed",
-  "cell": "legacy",
+  "value": 4.383339517370831,
+  "source": "derived: mean fitted variogram range (fallback)",
+  "cell": "N10",
   "legacy": null
  },
  "spatial_folds|||": {
-  "value": 4,
-  "source": "assumed",
-  "cell": "legacy",
+  "value": 2,
+  "source": "derived: largest fold count with every block >= 327 points and >= 327 candidates beyond the variogram-range buffer",
+  "cell": "N10",
   "legacy": 4
  },
  "kmeans_n_init|||": {
   "value": 10,
-  "source": "assumed",
-  "cell": "legacy",
+  "source": "SENSITIVE (inertia {1: 947.1, 3: 945.4, 10: 943.6, 30: 943.0})",
+  "cell": "N10",
   "legacy": 10
  },
  "num_seeds|||": {
@@ -615,7 +615,7 @@
  },
  "idw_power_raw|i2_28b|20|": {
   "value": 0.5,
-  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "source": "derived: LOO on pool, n=20",
   "cell": "N7",
   "legacy": 2
  },
@@ -644,8 +644,8 @@
   "legacy": "spherical"
  },
  "krig_nlags_raw|i2_28b|20|": {
-  "value": 16,
-  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "value": 24,
+  "source": "derived: LOO/K-fold on pool, n=20",
   "cell": "N7",
   "legacy": 6
  },
@@ -656,25 +656,25 @@
   "legacy": "spherical"
  },
  "krig_nlags_detrended|i2_28b|20|": {
-  "value": 16,
-  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "value": 24,
+  "source": "derived: LOO/K-fold on pool, n=20",
   "cell": "N7",
   "legacy": 6
  },
  "idw_power_raw|i2_28b|107|": {
-  "value": 0.5,
+  "value": 0.1,
   "source": "derived: LOO on pool, n=107 BOUNDARY",
   "cell": "N7",
   "legacy": 2
  },
  "idw_nn_raw|i2_28b|107|": {
-  "value": 40,
+  "value": 20,
   "source": "derived: LOO on pool, n=107",
   "cell": "N7",
   "legacy": null
  },
  "idw_power_detrended|i2_28b|107|": {
-  "value": 0.5,
+  "value": 0.1,
   "source": "derived: LOO on pool, n=107 BOUNDARY",
   "cell": "N7",
   "legacy": 2
@@ -842,7 +842,7 @@
   "legacy": "spherical"
  },
  "krig_nlags_raw|i1_2p5|107|": {
-  "value": 4,
+  "value": 3,
   "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
   "cell": "N7",
   "legacy": 6
@@ -854,7 +854,7 @@
   "legacy": "spherical"
  },
  "krig_nlags_detrended|i1_2p5|107|": {
-  "value": 4,
+  "value": 3,
   "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
   "cell": "N7",
   "legacy": 6
@@ -902,13 +902,13 @@
   "legacy": "spherical"
  },
  "krig_nlags_detrended|i1_2p5|327|": {
-  "value": 4,
+  "value": 3,
   "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
   "cell": "N7",
   "legacy": 6
  },
  "krig_range|i1_2p5||": {
-  "value": 3.586979443128746,
+  "value": 3.3454924389630665,
   "source": "derived: fitted exponential variogram range on the pool",
   "cell": "N7",
   "legacy": null
@@ -1076,8 +1076,8 @@
   "legacy": null
  },
  "idw_power_detrended|i3_2p4|20|": {
-  "value": 4,
-  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "value": 6,
+  "source": "derived: LOO on pool, n=20",
   "cell": "N7",
   "legacy": 2
  },
@@ -1094,7 +1094,7 @@
   "legacy": "spherical"
  },
  "krig_nlags_raw|i3_2p4|20|": {
-  "value": 4,
+  "value": 3,
   "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
   "cell": "N7",
   "legacy": 6
@@ -1106,8 +1106,8 @@
   "legacy": "spherical"
  },
  "krig_nlags_detrended|i3_2p4|20|": {
-  "value": 8,
-  "source": "derived: LOO/K-fold on pool, n=20",
+  "value": 3,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
   "cell": "N7",
   "legacy": 6
  },
@@ -1190,7 +1190,7 @@
   "legacy": "spherical"
  },
  "krig_nlags_raw|i3_2p4|327|": {
-  "value": 16,
+  "value": 32,
   "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
   "cell": "N7",
   "legacy": 6
@@ -1202,20 +1202,20 @@
   "legacy": "spherical"
  },
  "krig_nlags_detrended|i3_2p4|327|": {
-  "value": 6,
-  "source": "derived: LOO/K-fold on pool, n=327",
+  "value": 3,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
   "cell": "N7",
   "legacy": 6
  },
  "krig_range|i3_2p4||": {
-  "value": 2.3124583445239275,
+  "value": 2.6892437614432523,
   "source": "derived: fitted linear variogram range on the pool",
   "cell": "N7",
   "legacy": null
  },
  "idw_power_raw|i3_60|20|": {
   "value": 0.5,
-  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "source": "derived: LOO on pool, n=20",
   "cell": "N7",
   "legacy": 2
  },
@@ -1226,7 +1226,7 @@
   "legacy": null
  },
  "idw_power_detrended|i3_60|20|": {
-  "value": 0.5,
+  "value": 0.1,
   "source": "derived: LOO on pool, n=20 BOUNDARY",
   "cell": "N7",
   "legacy": 2
@@ -1293,7 +1293,7 @@
  },
  "krig_nlags_raw|i3_60|107|": {
   "value": 4,
-  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "source": "derived: LOO/K-fold on pool, n=107",
   "cell": "N7",
   "legacy": 6
  },
@@ -1368,5 +1368,101 @@
   "source": "derived: inner CV on pool, n=20, scores {3: np.float64(1.45), 4: np.float64(1.4), 6: np.float64(1.43), 8: np.float64(1.42), 10: np.float64(1.41), 15: np.float64(1.44)}",
   "cell": "N7",
   "legacy": 6
+ },
+ "huber_sigma_db|i2_28b|20|": {
+  "value": 5.080747577947347,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i2_28b|107|": {
+  "value": 5.527154893022351,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i2_28b|327|": {
+  "value": 5.860097393695385,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i1_2p5|20|": {
+  "value": 1.491226030447852,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i1_2p5|107|": {
+  "value": 1.0661308940743504,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i1_2p5|327|": {
+  "value": 1.1461445446873597,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_2p4|20|": {
+  "value": 2.1110346619957396,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_2p4|107|": {
+  "value": 2.0221384414927854,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_2p4|327|": {
+  "value": 2.0576545249008813,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_60|20|": {
+  "value": 0.8874802335244549,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_60|107|": {
+  "value": 0.8966284459948569,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "huber_sigma_db|i3_60|327|": {
+  "value": 0.9200821607623648,
+  "source": "derived: 1.4826*MAD of detrended pool residuals",
+  "cell": "N9",
+  "legacy": null
+ },
+ "spatial_buffer_m|i2_28b||": {
+  "value": 6.460055209012564,
+  "source": "derived: fitted variogram range (autocorrelation length)",
+  "cell": "N10",
+  "legacy": null
+ },
+ "spatial_buffer_m|i1_2p5||": {
+  "value": 3.3454924389630665,
+  "source": "derived: fitted variogram range (autocorrelation length)",
+  "cell": "N10",
+  "legacy": null
+ },
+ "spatial_buffer_m|i3_2p4||": {
+  "value": 2.6892437614432523,
+  "source": "derived: fitted variogram range (autocorrelation length)",
+  "cell": "N10",
+  "legacy": null
+ },
+ "spatial_buffer_m|i3_60||": {
+  "value": 5.038566660064439,
+  "source": "derived: fitted variogram range (autocorrelation length)",
+  "cell": "N10",
+  "legacy": null
  }
 }

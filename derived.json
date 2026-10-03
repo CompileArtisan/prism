@@ -1,0 +1,1270 @@
+{
+ "max_points|||": {
+  "value": 5000,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 5000
+ },
+ "tx_index|||": {
+  "value": 0,
+  "source": "convention: headline TX 0; variance across TX reported via run_per_tx",
+  "cell": "N5",
+  "legacy": 0
+ },
+ "rx_set_index|||": {
+  "value": 0,
+  "source": "convention: first pure-rx set",
+  "cell": "N5",
+  "legacy": 0
+ },
+ "power_definition|||": {
+  "value": "mean",
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": "mean"
+ },
+ "unit_offset_db|||": {
+  "value": 0.0,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.0
+ },
+ "nopath_policy|||": {
+  "value": "drop",
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": "drop"
+ },
+ "noise_floor_dbm|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "path_margin_db|||": {
+  "value": 0.0,
+  "source": "derived: unused, DeepMIMO exposes its own num_paths",
+  "cell": "N6",
+  "legacy": 0.0
+ },
+ "extent_cut_m|||": {
+  "value": 50.0,
+  "source": "spec: study scope (indoor = footprint <= this)",
+  "cell": "1b",
+  "legacy": 50.0
+ },
+ "band_log_tol|||": {
+  "value": 0.10662578782828737,
+  "source": "derived: calib_se_db / (10*|freq_exp|/ln10), freq_exp=2.16",
+  "cell": "N6",
+  "legacy": 0.105
+ },
+ "freq_exp|||": {
+  "value": 2.1595011299725937,
+  "source": "derived: OLS across K=4 scenarios, 95% CI [1.06, 3.26] (few bands, wide CI)",
+  "cell": "N6",
+  "legacy": 2.0
+ },
+ "clip_test|||": {
+  "value": 2,
+  "source": "derived: target-pool cross-scenario RMSE {2: 3.9417782089446494, 3: 5.133680594305664, 4: 6.249681417882354, 6: 7.887220705137834, 8: 8.330266082698573, inf: 15.047342311158854}",
+  "cell": "N6",
+  "legacy": 8.0
+ },
+ "n_calib|||": {
+  "value": 94,
+  "source": "derived: n=(sigma/eps)^2, sigma=9.68 dB, eps=1.0 dB",
+  "cell": "N6",
+  "legacy": 10
+ },
+ "knn_k|||": {
+  "value": 6,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 6
+ },
+ "edge_weight_kind|||": {
+  "value": "invdist",
+  "source": "derived: inner CV, GCN, {\"('invdist', None)\": 1.7, \"('gauss', 0.25)\": 1.7, \"('gauss', 0.5)\": 1.72, \"('gauss', 1)\": 1.72, \"('gauss', 2)\": 1.72}",
+  "cell": "N7",
+  "legacy": "invdist"
+ },
+ "kernel_bw_m|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "hidden|||": {
+  "value": 64,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 64
+ },
+ "layers|||": {
+  "value": 3,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 3
+ },
+ "heads|||": {
+  "value": 4,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 4
+ },
+ "dropout|||": {
+  "value": 0.3,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.3
+ },
+ "lr|||": {
+  "value": 0.01,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.01
+ },
+ "weight_decay|||": {
+  "value": 0.0001,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.0001
+ },
+ "epochs_cap|||": {
+  "value": 300,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 300
+ },
+ "patience|||": {
+  "value": 30,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 30
+ },
+ "val_scheme|||": {
+  "value": "holdout",
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": "holdout"
+ },
+ "val_frac|||": {
+  "value": 0.15,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.15
+ },
+ "cv_folds|||": {
+  "value": 10,
+  "source": "convention",
+  "cell": "legacy",
+  "legacy": 10
+ },
+ "grad_clip|||": {
+  "value": 5.0,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 5.0
+ },
+ "huber_sigma_db|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "huber_beta_db|||": {
+  "value": 2.0,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 2.0
+ },
+ "star_K|||": {
+  "value": 8,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 8
+ },
+ "idw_power_raw|||": {
+  "value": 2,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 2
+ },
+ "idw_nn_raw|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "idw_power_detrended|||": {
+  "value": 2,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 2
+ },
+ "idw_nn_detrended|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "krig_model_raw|||": {
+  "value": "spherical",
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|||": {
+  "value": 6,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 6
+ },
+ "krig_model_detrended|||": {
+  "value": "spherical",
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|||": {
+  "value": 6,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 6
+ },
+ "krig_range|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "tune_exclude_n|||": {
+  "value": 0,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0
+ },
+ "spatial_buffer_m|||": {
+  "value": null,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": null
+ },
+ "spatial_folds|||": {
+  "value": 4,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 4
+ },
+ "kmeans_n_init|||": {
+  "value": 10,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 10
+ },
+ "num_seeds|||": {
+  "value": 20,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 20
+ },
+ "n_boot|||": {
+  "value": 10000,
+  "source": "convention",
+  "cell": "legacy",
+  "legacy": 10000
+ },
+ "hidden|||Hybrid": {
+  "value": 32,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 32
+ },
+ "layers|||Hybrid": {
+  "value": 2,
+  "source": "convention: Hybrid is a fixed two-conv residual architecture (structural, not tuned)",
+  "cell": "N8",
+  "legacy": 3
+ },
+ "hidden|||Star": {
+  "value": 32,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 32
+ },
+ "dropout|||Star": {
+  "value": 0.1,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.1
+ },
+ "lr|||Star": {
+  "value": 0.003,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 0.003
+ },
+ "epochs_cap|||Star": {
+  "value": 400,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 400
+ },
+ "patience|||Star": {
+  "value": 40,
+  "source": "assumed",
+  "cell": "legacy",
+  "legacy": 40
+ },
+ "density_grid|||": {
+  "value": [
+   20,
+   35,
+   61,
+   107,
+   187,
+   327,
+   572,
+   1000
+  ],
+  "source": "derived: log-spaced from SPEC density bounds",
+  "cell": "1b",
+  "legacy": null
+ },
+ "scn_list|||": {
+  "value": [
+   "i2_28b",
+   "i1_2p5",
+   "i3_2p4",
+   "i3_60"
+  ],
+  "source": "convention: scenario set frozen at discovery (pass 1)",
+  "cell": "2a-iii",
+  "legacy": null
+ },
+ "pool_n|||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for all derivations (never scored in the report)",
+  "cell": "N0",
+  "legacy": null
+ },
+ "n_deriv_seeds|||": {
+  "value": 5,
+  "source": "convention: labeled draws per derivation experiment",
+  "cell": "N0",
+  "legacy": null
+ },
+ "power_definition|i2_28b||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.34 dB, std 3.54)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i2_28b||": {
+  "value": -27.33922019010084,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i2_28b||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i2_28b||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (100/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
+ "power_definition|i1_2p5||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.05 dB, std 1.10)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i1_2p5||": {
+  "value": -27.0522301678837,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i1_2p5||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i1_2p5||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (0/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
+ "power_definition|i3_2p4||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.78 dB, std 1.67)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i3_2p4||": {
+  "value": -27.783316774885503,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i3_2p4||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i3_2p4||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (0/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
+ "power_definition|i3_60||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.10 dB, std 0.98)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i3_60||": {
+  "value": -27.103437129801335,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i3_60||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i3_60||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (0/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
+ "max_points|i2_28b||": {
+  "value": null,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 20000, 'per_m2': None}",
+  "cell": "N4",
+  "legacy": 5000
+ },
+ "max_points|i1_2p5||": {
+  "value": 5000,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 5000, 'per_m2': 5000}",
+  "cell": "N4",
+  "legacy": 5000
+ },
+ "max_points|i3_2p4||": {
+  "value": 10000,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 5000, 'per_m2': 10000}",
+  "cell": "N4",
+  "legacy": 5000
+ },
+ "max_points|i3_60||": {
+  "value": null,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 5000, 'per_m2': None}",
+  "cell": "N4",
+  "legacy": 5000
+ },
+ "tune_exclude_n|i2_28b||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "tune_exclude_n|i1_2p5||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "tune_exclude_n|i3_2p4||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "tune_exclude_n|i3_60||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "pool_fingerprint|i2_28b||": {
+  "value": "39ac4df2474f033f1e3c1e24f369ca55",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i1_2p5||": {
+  "value": "296f776f209f0ab20d54ebe41b62ce80",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i3_2p4||": {
+  "value": "da9042d2742ed35388618ac444dc8bf7",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "pool_fingerprint|i3_60||": {
+  "value": "b856478419dd98fa4931bc409f869581",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
+ "trend_mode|||": {
+  "value": "fspl",
+  "source": "derived: pool hold-out IDW-detrended RMSE {'fspl_legacy': 1.7798165228965124, 'fspl': 1.6756633327912231, 'fit_all': 1.6805859155455931}",
+  "cell": "N6",
+  "legacy": "fspl_legacy"
+ },
+ "clip_train|||": {
+  "value": 2,
+  "source": "derived: pool hold-out GCN RMSE {2: 1.7503380314613348, 3: 1.7705009637614837, 4: 1.765719905352411, 6: 1.7657216249339671, 8: 1.7657216249339671, inf: 1.7657216249339671}",
+  "cell": "N6",
+  "legacy": 4.0
+ },
+ "eps_idw|||": {
+  "value": 1e-09,
+  "source": "derived: verified-insensitive (max shift 0.02 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 1e-09
+ },
+ "eps_edge|||": {
+  "value": 1e-06,
+  "source": "derived: verified-insensitive (max shift 0.01 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 1e-06
+ },
+ "eps_norm|||": {
+  "value": 1e-08,
+  "source": "derived: verified-insensitive (max shift 0.02 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 1e-08
+ },
+ "eps_dist|||": {
+  "value": 0.001,
+  "source": "derived: verified-insensitive (max shift 0.02 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 0.001
+ },
+ "eps_improve|||": {
+  "value": 1e-06,
+  "source": "derived: verified-insensitive (max shift 0.02 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 1e-06
+ },
+ "eps_rownorm|||": {
+  "value": 1e-08,
+  "source": "derived: verified-insensitive (max shift 0.02 x seed sd under x10 / x0.1)",
+  "cell": "N6",
+  "legacy": 1e-08
+ },
+ "idw_power_raw|i2_28b|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|20|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|20|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|20|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|20|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|20|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|20|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i2_28b|107|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|107|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|107|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|107|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|107|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|107|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i2_28b|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i2_28b|327|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i2_28b|327|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i2_28b|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i2_28b|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i2_28b|327|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i2_28b|327|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i2_28b|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i2_28b||": {
+  "value": 6.460055209012564,
+  "source": "derived: fitted power variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i1_2p5|20|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|20|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|20|": {
+  "value": 1,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|20|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p5|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|107|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|107|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|107|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i1_2p5|327|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i1_2p5|327|": {
+  "value": 3,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i1_2p5|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i1_2p5|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i1_2p5|327|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i1_2p5|327|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i1_2p5||": {
+  "value": 3.586979443128746,
+  "source": "derived: fitted exponential variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i3_2p4|20|": {
+  "value": 2,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|20|": {
+  "value": 8,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|20|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|20|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|20|": {
+  "value": "spherical",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_2p4|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|107|": {
+  "value": 12,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|107|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_2p4|327|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_2p4|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_2p4|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_2p4|327|": {
+  "value": "power",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_2p4|327|": {
+  "value": 16,
+  "source": "derived: LOO/K-fold on pool, n=327 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_2p4|327|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_2p4|327|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i3_2p4||": {
+  "value": 2.3124583445239275,
+  "source": "derived: fitted linear variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_raw|i3_60|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|20|": {
+  "value": 0.5,
+  "source": "derived: LOO on pool, n=20 BOUNDARY",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|20|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=20",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|20|": {
+  "value": "linear",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|20|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|20|": {
+  "value": "exponential",
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|20|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=20",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_60|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|107|": {
+  "value": 20,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|107|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|107|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=107",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|107|": {
+  "value": 4,
+  "source": "derived: LOO/K-fold on pool, n=107 BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|107|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|107|": {
+  "value": 6,
+  "source": "derived: LOO/K-fold on pool, n=107",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "idw_power_raw|i3_60|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_raw|i3_60|327|": {
+  "value": 40,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "idw_power_detrended|i3_60|327|": {
+  "value": 1.5,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": 2
+ },
+ "idw_nn_detrended|i3_60|327|": {
+  "value": null,
+  "source": "derived: LOO on pool, n=327",
+  "cell": "N7",
+  "legacy": null
+ },
+ "krig_model_raw|i3_60|327|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_raw|i3_60|327|": {
+  "value": 12,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_model_detrended|i3_60|327|": {
+  "value": "gaussian",
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": "spherical"
+ },
+ "krig_nlags_detrended|i3_60|327|": {
+  "value": 8,
+  "source": "derived: LOO/K-fold on pool, n=327",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "krig_range|i3_60||": {
+  "value": 5.038566660064439,
+  "source": "derived: fitted gaussian variogram range on the pool",
+  "cell": "N7",
+  "legacy": null
+ },
+ "knn_k|i2_28b|20|": {
+  "value": 3,
+  "source": "derived: inner CV on pool, n=20, scores {3: np.float64(3.75), 4: np.float64(3.96), 6: np.float64(3.93), 8: np.float64(3.76), 10: np.float64(4.01), 15: np.float64(4.05)} BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i2_28b|107|": {
+  "value": 20,
+  "source": "derived: inner CV on pool, n=107, scores {3: np.float64(3.67), 4: np.float64(3.66), 6: np.float64(3.63), 8: np.float64(3.64), 10: np.float64(3.7), 15: np.float64(3.71), 20: np.float64(3.59)} BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i2_28b|327|": {
+  "value": 15,
+  "source": "derived: inner CV on pool, n=327, scores {3: np.float64(3.64), 4: np.float64(3.65), 6: np.float64(3.63), 8: np.float64(3.65), 10: np.float64(3.62), 15: np.float64(3.61), 20: np.float64(3.62)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i1_2p5|20|": {
+  "value": 4,
+  "source": "derived: inner CV on pool, n=20, scores {3: np.float64(1.45), 4: np.float64(1.4), 6: np.float64(1.43), 8: np.float64(1.42), 10: np.float64(1.41), 15: np.float64(1.44)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i1_2p5|107|": {
+  "value": 4,
+  "source": "derived: inner CV on pool, n=107, scores {3: np.float64(1.2), 4: np.float64(1.17), 6: np.float64(1.2), 8: np.float64(1.2), 10: np.float64(1.21), 15: np.float64(1.2), 20: np.float64(1.19)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i1_2p5|327|": {
+  "value": 20,
+  "source": "derived: inner CV on pool, n=327, scores {3: np.float64(1.1), 4: np.float64(1.09), 6: np.float64(1.1), 8: np.float64(1.11), 10: np.float64(1.11), 15: np.float64(1.1), 20: np.float64(1.09)} BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_2p4|20|": {
+  "value": 6,
+  "source": "derived: inner CV on pool, n=20, scores {3: np.float64(1.38), 4: np.float64(1.29), 6: np.float64(1.24), 8: np.float64(1.31), 10: np.float64(1.34), 15: np.float64(1.32)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_2p4|107|": {
+  "value": 6,
+  "source": "derived: inner CV on pool, n=107, scores {3: np.float64(1.0), 4: np.float64(0.98), 6: np.float64(0.95), 8: np.float64(0.98), 10: np.float64(0.97), 15: np.float64(0.98), 20: np.float64(0.98)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_2p4|327|": {
+  "value": 3,
+  "source": "derived: inner CV on pool, n=327, scores {3: np.float64(0.87), 4: np.float64(0.88), 6: np.float64(0.89), 8: np.float64(0.87), 10: np.float64(0.87), 15: np.float64(0.87), 20: np.float64(0.87)} BOUNDARY",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_60|20|": {
+  "value": 8,
+  "source": "derived: inner CV on pool, n=20, scores {3: np.float64(1.38), 4: np.float64(1.35), 6: np.float64(1.35), 8: np.float64(1.32), 10: np.float64(1.35), 15: np.float64(1.4)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_60|107|": {
+  "value": 10,
+  "source": "derived: inner CV on pool, n=107, scores {3: np.float64(1.05), 4: np.float64(1.04), 6: np.float64(1.05), 8: np.float64(1.08), 10: np.float64(1.04), 15: np.float64(1.08), 20: np.float64(1.06)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "knn_k|i3_60|327|": {
+  "value": 8,
+  "source": "derived: inner CV on pool, n=327, scores {3: np.float64(1.04), 4: np.float64(1.03), 6: np.float64(1.03), 8: np.float64(1.03), 10: np.float64(1.03), 15: np.float64(1.04), 20: np.float64(1.03)}",
+  "cell": "N7",
+  "legacy": 6
+ },
+ "kernel_bw_m|i2_28b||": {
+  "value": 6.460055209012564,
+  "source": "derived: 1.00 x fitted variogram range",
+  "cell": "N7",
+  "legacy": null
+ },
+ "kernel_bw_m|i1_2p5||": {
+  "value": 3.586979443128746,
+  "source": "derived: 1.00 x fitted variogram range",
+  "cell": "N7",
+  "legacy": null
+ },
+ "kernel_bw_m|i3_2p4||": {
+  "value": 2.3124583445239275,
+  "source": "derived: 1.00 x fitted variogram range",
+  "cell": "N7",
+  "legacy": null
+ },
+ "kernel_bw_m|i3_60||": {
+  "value": 5.038566660064439,
+  "source": "derived: 1.00 x fitted variogram range",
+  "cell": "N7",
+  "legacy": null
+ }
+}

@@ -1,11 +1,34 @@
-### Where the data comes from
 
-It uses **DeepMIMO**, an online catalog of simulated buildings ("scenarios," e.g. `i2_28b`, `i1_2p5`) where ray-tracing physics has already computed realistic signal propagation. Loading a scenario gives you:
+### The research question
+
+The data is DeepMIMO ray-traced indoor scenarios: `i1_2p5`, `i1_2p4`, `i2_28b`, `i3_2p4` and `i3_60`. Given a few labeled received-signal-strength (RSS) points, the notebook predicts RSS at all the others and compares:
+
+- **Classical baselines:** IDW and ordinary kriging, plus path-loss-detrended versions.
+- **Whole-graph GNNs:** GCN, GAT and a hybrid that learns a GNN residual on top of IDW, run on kNN and Delaunay graphs.
+- **Query-conditioned model:** `EdgeAwareStarGAT`, which predicts each target from K nearby labeled references (a SeaGAT-style formulation).
+- **Later additions:** the KGNN family (kriging-initialised, TX-polar message passing), residual-on-kriging models, and a refit of kriging with the same tuning budget as the GNNs.
+
+The experiments cover density sweeps, topology effects, cross-scenario generalization, spatial-fold extrapolation, and paired statistical tests with Holm correction and power analysis. The notebook says it doesn't assume the GNNs win and reports null results.
+
+Loading a scenario gives you:
 - **positions**: (x, y, z) coordinates of receiver points
 - **rss**: the true signal strength at each point (this is the "ground truth" you're trying to predict elsewhere)
 - **env_feats**: features like distance-to-transmitter and a **LOS flag** (line-of-sight — whether a wall blocks the direct path)
 
-Since real buildings have thousands of points, the notebook subsamples down to a manageable number.
+
+### The two-pass design
+
+Pass 1 derives every hyperparameter and setting from the data and freezes it in `derived.json`. Pass 2 runs the report with those frozen values, keeping the derivation pool out of the test sets (a leakage guard). Your N13 cell is the pass-1 orchestrator, `run_derivation()`:
+
+1. **N2–N5:** data settings, `max_points` per scenario (how many points to subsample), and the derivation pool with its fingerprint.
+2. **N6:** trend mode, frequency exponent, clipping, number of calibration points.
+3. **N7:** IDW and kriging settings, and kNN `k` per density.
+4. **N8:** Optuna tuning of GCN, GAT and Hybrid, then training rules and the validation scheme.
+5. **N9–N10:** star-model tuning, spatial folds, k-means, and the number of seeds from a power pilot.
+6. **N12:** sensitivity report and `final_checks()`, which writes `derived.complete`.
+
+It is resumable and parallel. `run_jobs` forks workers (auto-sized, at most 6, based on cores and free RAM), merges each finished job into `derived.json` immediately, and skips anything already derived via `have(...)`. If you interrupt it, it picks up from the partial file. The cells after it are `%%report` cells that only execute in pass 2.
+
 
 ### Turning points into a graph
 
@@ -50,16 +73,4 @@ Four families of models compete against each other:
 11. **Cross-scenario generalization**: train the model on Building A, then test it — with zero further training — on Building B, in both directions. This checks whether the model learned genuine "physics" (distance/LOS → signal) rather than memorizing one building's layout. A small **calibration** step (a handful of test-building points) can correct for absolute power-level offsets between buildings, but those calibration points are excluded from the final scored results to avoid leaking test answers into evaluation.
 12. **Sparse-regime benchmark**: the final deliverable — specifically tests the hypothesis that GNNs beat classical methods most when you have very few measurements, since that's when their ability to share information across the graph gives them an edge over purely local methods like IDW.
 
-# Results
-## i2_28b result: GCN beating IDW/Kriging by 15–25%
-- GCN got RMSE ≈ 3.0–3.4 dB versus IDW/Kriging at ≈ 3.9–4.3 dB across densities
-- Coverage accuracy (correctly calling a spot "covered" vs "dead zone") also improved with GCN over the baselines.
-- For i2_28b at low density (30 pts), GCN beats IDW by ~15%, which is inside the 10–30% range the notebook's own hypothesis predicted.
-
-## i1_2p5 result: IDW and Kriging beat GCN/GAT outright at every density
-- At 200 points, Kriging gets 0.80 dB RMSE vs. GCN's 1.17 and GAT's 1.09.
-- At 30 points, plain GCN is actually worse than IDW (1.25 vs 1.12 dB).
-- i1_2p5 behaves differently because its RSS only spans about -89 to -78.5 dBm (a 10 dB range), while i2_28b spans -135 to -100 dBm (a 35 dB range, much more structure from walls/LOS transitions).
-- It was found that a near-flat target is easy for any method, including dumb ones, which explains why the GNN's extra modeling power doesn't pay off there.
-- The Hybrid-GNN-IDW model (which leans on an IDW prior and just learns a correction) stays competitive.
 

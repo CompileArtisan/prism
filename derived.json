@@ -54,14 +54,14 @@
   "legacy": 50.0
  },
  "band_log_tol|||": {
-  "value": 0.10613634703813397,
-  "source": "derived: calib_se_db / (10*|freq_exp|/ln10), freq_exp=2.17",
+  "value": 0.10707165820758285,
+  "source": "derived: calib_se_db / (10*|freq_exp|/ln10), freq_exp=2.15",
   "cell": "N6",
   "legacy": 0.105
  },
  "freq_exp|||": {
-  "value": 2.1694595275327737,
-  "source": "derived: OLS across K=4 scenarios, 95% CI [1.09, 3.25] (few bands, wide CI)",
+  "value": 2.150508483328015,
+  "source": "derived: OLS across K=5 scenarios, 95% CI [1.65, 2.65] (few bands, wide CI)",
   "cell": "N6",
   "legacy": 2.0
  },
@@ -72,8 +72,8 @@
   "legacy": 8.0
  },
  "n_calib|||": {
-  "value": 23,
-  "source": "derived: n=(sigma/eps)^2, sigma=4.70 dB, eps=1.0 dB",
+  "value": 134,
+  "source": "derived: n=(sigma/eps)^2, sigma=11.57 dB, eps=1.0 dB",
   "cell": "N6",
   "legacy": 10
  },
@@ -371,6 +371,7 @@
  "scn_list|||": {
   "value": [
    "i2_28b",
+   "i1_2p5",
    "i1_2p4",
    "i3_2p4",
    "i3_60"
@@ -380,6 +381,12 @@
   "legacy": null
  },
  "tune_exclude_n|i2_28b||": {
+  "value": 1500,
+  "source": "convention: labeled-pool size for derivations",
+  "cell": "N1",
+  "legacy": 0
+ },
+ "tune_exclude_n|i1_2p5||": {
   "value": 1500,
   "source": "convention: labeled-pool size for derivations",
   "cell": "N1",
@@ -439,6 +446,30 @@
   "cell": "N2",
   "legacy": "drop"
  },
+ "power_definition|i1_2p5||": {
+  "value": "mean",
+  "source": "derived: smallest spread vs DeepMIMO total power (offset -27.05 dB, std 1.10)",
+  "cell": "N2",
+  "legacy": "mean"
+ },
+ "unit_offset_db|i1_2p5||": {
+  "value": -27.0522301678837,
+  "source": "derived: median(mine - DeepMIMO total power)",
+  "cell": "N2",
+  "legacy": 0.0
+ },
+ "noise_floor_dbm|i1_2p5||": {
+  "value": -91.98970004336019,
+  "source": "derived: -174 + 10log10(BW) + NF (SPEC)",
+  "cell": "N2",
+  "legacy": null
+ },
+ "nopath_policy|i1_2p5||": {
+  "value": "drop",
+  "source": "derived: histogram + noise floor (0/3000 points at/below floor dropped)",
+  "cell": "N2",
+  "legacy": "drop"
+ },
  "power_definition|i1_2p4||": {
   "value": "mean",
   "source": "derived: smallest spread vs DeepMIMO total power (offset -27.20 dB, std 1.12)",
@@ -446,7 +477,7 @@
   "legacy": "mean"
  },
  "unit_offset_db|i1_2p4||": {
-  "value": -27.196992571196432,
+  "value": -27.1969849418019,
   "source": "derived: median(mine - DeepMIMO total power)",
   "cell": "N2",
   "legacy": 0.0
@@ -470,7 +501,7 @@
   "legacy": "mean"
  },
  "unit_offset_db|i3_2p4||": {
-  "value": -27.783324404280034,
+  "value": -27.783316774885503,
   "source": "derived: median(mine - DeepMIMO total power)",
   "cell": "N2",
   "legacy": 0.0
@@ -517,9 +548,15 @@
   "cell": "N4",
   "legacy": 5000
  },
+ "max_points|i1_2p5||": {
+  "value": 5000,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 5000, 'per_m2': 5000}",
+  "cell": "N4",
+  "legacy": 5000
+ },
  "max_points|i1_2p4||": {
-  "value": 20000,
-  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 20000, 'per_m2': 5000}",
+  "value": 5000,
+  "source": "derived: sweep N, 5 subsample seeds, {'fixed_n': 5000, 'per_m2': 5000}",
   "cell": "N4",
   "legacy": 5000
  },
@@ -541,8 +578,14 @@
   "cell": "N5",
   "legacy": null
  },
+ "pool_fingerprint|i1_2p5||": {
+  "value": "296f776f209f0ab20d54ebe41b62ce80",
+  "source": "convention: pool identity check",
+  "cell": "N5",
+  "legacy": null
+ },
  "pool_fingerprint|i1_2p4||": {
-  "value": "1f287d189337a18b15575b7825c7651b",
+  "value": "296f776f209f0ab20d54ebe41b62ce80",
   "source": "convention: pool identity check",
   "cell": "N5",
   "legacy": null
@@ -561,13 +604,13 @@
  },
  "trend_mode|||": {
   "value": "fit_all",
-  "source": "derived: pool hold-out IDW-detrended RMSE {'fspl_legacy': 1.7769772267267454, 'fspl': 1.700277104362122, 'fit_all': 1.6966877345700864}",
+  "source": "derived: pool hold-out IDW-detrended RMSE {'fspl_legacy': 1.6390563780441694, 'fspl': 1.5502113222273644, 'fit_all': 1.5481598412805428}",
   "cell": "N6",
   "legacy": "fspl_legacy"
  },
  "clip_train|||": {
   "value": 3,
-  "source": "derived: pool hold-out GCN RMSE {2: 1.7866726704073028, 3: 1.7567379293291372, 4: 1.760051287227419, 6: 1.760051287227419, 8: 1.760051287227419, inf: 1.760051287227419}",
+  "source": "derived: pool hold-out GCN RMSE {2: 1.6532526070817946, 3: 1.6277752639070249, 4: 1.6321751236286293, 6: 1.6405019328406976, 8: 1.6405019328406976, inf: 1.6405019328406976}",
   "cell": "N6",
   "legacy": 4.0
  }

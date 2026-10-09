@@ -132,14 +132,14 @@
   "legacy": 0.0001
  },
  "epochs_cap|||": {
-  "value": 300,
-  "source": "assumed",
+  "value": 150,
+  "source": "LITE override: was 300; check TRAIN_LOG hit_cap (full value kept in derived_full.json)",
   "cell": "legacy",
   "legacy": 300
  },
  "patience|||": {
-  "value": 30,
-  "source": "assumed",
+  "value": 20,
+  "source": "LITE override: was 30 (full value kept in derived_full.json)",
   "cell": "legacy",
   "legacy": 30
  },
@@ -264,8 +264,8 @@
   "legacy": 10
  },
  "num_seeds|||": {
-  "value": 16,
-  "source": "assumed",
+  "value": 6,
+  "source": "LITE override: compute-light run, was 16 (full value kept in derived_full.json)",
   "cell": "legacy",
   "legacy": 16
  },
@@ -356,15 +356,12 @@
  "density_grid|||": {
   "value": [
    20,
-   35,
    61,
-   107,
    187,
-   327,
    572,
    1000
   ],
-  "source": "derived: log-spaced from SPEC density bounds",
+  "source": "LITE override: 5 of the 8 log-spaced densities (full value kept in derived_full.json)",
   "cell": "1b",
   "legacy": null
  },
@@ -372,11 +369,9 @@
   "value": [
    "i2_28b",
    "i1_2p5",
-   "i1_2p4",
-   "i3_2p4",
-   "i3_60"
+   "i3_2p4"
   ],
-  "source": "convention: scenario set frozen at discovery (pass 1)",
+  "source": "LITE override: one scenario per building (full value kept in derived_full.json)",
   "cell": "2a-iii",
   "legacy": null
  },

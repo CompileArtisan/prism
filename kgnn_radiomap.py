@@ -23,12 +23,12 @@ def _sp(x): return F.softplus(x)
 def _isp(v): return math.log(math.exp(v) - 1.0)
 
 class KGNN(nn.Module):
-    def __init__(self, hidden=16, corr=True, polar=True):
+    def __init__(self, hidden=16, corr=True, polar=True, s2_init=0.05):
         super().__init__()
         self.polar, self.corr = polar, corr
         self.l1 = nn.Parameter(torch.tensor(_isp(3.0))); self.s1 = nn.Parameter(torch.tensor(_isp(0.8)))
         self.lr = nn.Parameter(torch.tensor(_isp(3.0))); self.lt = nn.Parameter(torch.tensor(_isp(3.0)))
-        self.s2 = nn.Parameter(torch.tensor(_isp(0.05)))          # polar component starts ~off
+        self.s2 = nn.Parameter(torch.tensor(_isp(s2_init)))       # polar component amplitude (0.05 = ~off; larger lets lr/lt receive signal)
         self.tau = nn.Parameter(torch.tensor(_isp(0.2)))
         self.head = nn.Sequential(nn.Linear(6, hidden), nn.SiLU(), nn.Linear(hidden, 1))
         nn.init.zeros_(self.head[-1].weight); nn.init.zeros_(self.head[-1].bias)
@@ -71,7 +71,7 @@ class KGNN(nn.Module):
         return out * sigma
 
 def kgnn_predict(pos, d_tx, y, tx_xy, train_idx, test_idx, seed=0, steps=200, lr=1e-2, wd=1e-3, Kmax=12,
-                 delta=1.5, val_frac=0.2, corr=True, polar=True, n_ens=1):
+                 delta=1.5, val_frac=0.2, corr=True, polar=True, n_ens=1, s2_init=0.05):
     train_idx = np.asarray(train_idx); test_idx = np.asarray(test_idx)
     a, nexp = fit_trend(d_tx[train_idx], y[train_idx]); res = y - trend_eval(d_tx, a, nexp)
     sigma = float(np.std(res[train_idx]) + 1e-6)
@@ -84,7 +84,7 @@ def kgnn_predict(pos, d_tx, y, tx_xy, train_idx, test_idx, seed=0, steps=200, lr
         s = seed * 1000 + e; torch.manual_seed(s); rng = np.random.default_rng(s)
         perm = rng.permutation(train_idx); nv = max(3, int(round(len(perm) * val_frac))) if len(perm) >= 12 else 0
         val_idx, fit_idx = (perm[:nv], perm[nv:]) if nv else (perm[:0], perm)
-        m = KGNN(corr=corr, polar=polar); opt = torch.optim.AdamW(m.parameters(), lr=lr, weight_decay=wd)
+        m = KGNN(corr=corr, polar=polar, s2_init=s2_init); opt = torch.optim.AdamW(m.parameters(), lr=lr, weight_decay=wd)
         best, state = float("inf"), None
         def eval_val():
             m.eval()

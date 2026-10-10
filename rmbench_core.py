@@ -126,6 +126,23 @@ def make_synthetic_raw(scenario="A", tx=0, n=2500, seed=0):
                 name=f"syn|{scenario}|{tx}", scenario=f"syn{scenario}", tx=tx)
 
 # ----------------------------------------------------------------------------- DeepMIMO loader (needs network; untested offline)
+def _dm_load(dm, scenario, **kw):
+    """dm.load that survives scenarios whose scene geometry cannot be parsed by the installed DeepMIMO
+    (e.g. KeyError 'face_vertex_idxs' in PhysicalElement.from_dict). The benchmark only needs rx_pos / tx_pos /
+    power / los, never the 3D scene, so on that specific failure we retry with Scene.from_data stubbed to an empty Scene."""
+    try:
+        return dm.load(scenario, **kw)
+    except (KeyError, RuntimeError) as e:
+        if "face_vertex_idxs" not in str(e) and "face_material_idxs" not in str(e):
+            raise
+    orig = dm.Scene.__dict__["from_data"]
+    dm.Scene.from_data = classmethod(lambda cls, base_folder: cls())
+    try:
+        print(f"[rmbench] {scenario}: scene geometry unreadable by this DeepMIMO version; loading without it (not used).")
+        return dm.load(scenario, **kw)
+    finally:
+        dm.Scene.from_data = orig
+
 def load_deepmimo_units(scenario, cfg, seed=0):
     """One raw dict per transmitter. Uses per-path power (``dataset.power``) when available -> no heavy
     compute_channels call. VERIFY on first run: attribute names / dBm units / los coding of your DeepMIMO version."""
@@ -135,9 +152,9 @@ def load_deepmimo_units(scenario, cfg, seed=0):
     n_pts = rx_set.num_points
     if n_pts > cfg["max_points"]:
         keep = np.sort(np.random.default_rng(seed).choice(n_pts, cfg["max_points"], replace=False))
-        data = dm.load(scenario, rx_sets={rx_set.id: keep})
+        data = _dm_load(dm, scenario, rx_sets={rx_set.id: keep})
     else:
-        data = dm.load(scenario, rx_sets="rx_only")
+        data = _dm_load(dm, scenario, rx_sets="rx_only")
     dsets = data.datasets if isinstance(data, dm.MacroDataset) else [data]
     out = []
     for k, ds in enumerate(dsets):
@@ -455,9 +472,14 @@ def run_tasks(tasks, out_path, n_jobs=1, log_every=10):
     todo = [t for t in tasks if t["id"] not in done_task_ids(out_path)]
     print(f"[run_tasks] {len(tasks)} tasks, {len(tasks) - len(todo)} already done, {len(todo)} to run (n_jobs={n_jobs})")
     t0 = time.time(); n_fail = 0
+    shown = False
     def _write(rows, fh):
-        nonlocal n_fail
-        n_fail += sum(r["status"] != "ok" for r in rows)
+        nonlocal n_fail, shown
+        bad_rows = [r for r in rows if r["status"] != "ok"]
+        n_fail += len(bad_rows)
+        if bad_rows and not shown:                                   # show the reason ONCE, right where it happens
+            shown = True
+            print(f"  first failure: job={bad_rows[0].get('name')} unit={bad_rows[0].get('unit')}\n{bad_rows[0].get('err', '')}")
         fh.write(json.dumps(rows, default=lambda o: None if o != o else float(o) if isinstance(o, np.floating) else str(o)) + "\n"); fh.flush()
     with open(out_path, "a") as fh:
         if n_jobs <= 1:
@@ -466,7 +488,10 @@ def run_tasks(tasks, out_path, n_jobs=1, log_every=10):
                 if i % log_every == 0 or i == len(todo): print(f"  {i}/{len(todo)}  {time.time() - t0:.0f}s  failed jobs: {n_fail}")
         else:
             from concurrent.futures import ProcessPoolExecutor, as_completed
-            with ProcessPoolExecutor(n_jobs, initializer=_init_worker) as ex:
+            import multiprocessing as mp
+            # "spawn", not fork: the parent has already run torch (OpenMP/MKL/CUDA-build state); forking that into workers
+            # is a classic cause of instant worker crashes / failures. Spawned workers import rmbench_core fresh.
+            with ProcessPoolExecutor(n_jobs, mp_context=mp.get_context("spawn"), initializer=_init_worker) as ex:
                 futs = {ex.submit(run_task, t): t for t in todo}
                 for i, f in enumerate(as_completed(futs), 1):
                     try: rows = f.result()

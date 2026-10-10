@@ -162,7 +162,7 @@ def fit_predict_kgnn(u, tr, te, prep, hp, seed):
     m.eval(); Kf = min(Kmax, len(tr))
     with torch.no_grad():
         pred = np.concatenate([m(Pt[te[i:i + 1500]], Pt[tr], rn[tr], scale, tx, Kf).numpy() for i in range(0, len(te), 1500)]) * sig
-    return pred, dict(steps_run=steps, l1=float(_sp(m.l1)), s2=float(_sp(m.s2)), tau=float(_sp(m.tau)))
+    return pred, dict(steps_run=steps, l1=float(_sp(m.l1).detach()), s2=float(_sp(m.s2).detach()), tau=float(_sp(m.tau).detach()))
 
 # ----------------------------------------------------------------------------- dispatch used by rmbench_core.predict_method
 def predict_neural(method, hp, u, tr, te, prep, seed, cache):

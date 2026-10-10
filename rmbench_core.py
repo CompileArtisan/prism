@@ -390,7 +390,7 @@ def kfold_cv_rmse(u, tr, fn, k=5, seed=0):
 
 # ----------------------------------------------------------------------------- method dispatch (shared by tuning + evaluation)
 CLASSICAL = ("trend", "idw", "krig_global", "krig_local")
-NEURAL = ("gcn", "kgnn", "krig_untrained")
+NEURAL = ("gcn", "gcn_krig", "kgnn", "krig_untrained")
 
 def predict_method(method, hp, u, tr, te, prep, seed=0, graph_cache=None):
     """Returns (pred_dbm[te], info dict). Each model sees prep['res'][tr] only."""

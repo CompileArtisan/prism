@@ -7,6 +7,10 @@ GCN  : label-aware. Inputs per node = train-standardised geometric features, the
 KGNN : the supplied kriging-initialised message-passing model, with the dead variance-aware correction head removed and
        the audit fixes listed in the notebook (safe norms, no unused args, shared trend/residual). steps=0 gives the
        *untrained local kriging* reference (fixed default covariance, no learning).
+GCN-K: (method "gcn_krig") the same label-aware GCN, but it predicts a CORRECTION to a train-label-only IDW baseline
+       (leave-one-out for observed nodes, (power, k) from tune_idw_loo on the labeled set). Output layer is zero-initialised, so
+       the untrained model *is* IDW, and validation early-stopping includes step 0, so it can only move away from IDW if that
+       helps on held-out *labeled* points. Reported next to plain "gcn", never instead of it.
 Both models predict the RESIDUAL; rmbench_core adds the shared trend back.
 """
 from __future__ import annotations
@@ -47,6 +51,15 @@ def label_diffusion(ym, m, g, hops=(2, 4, 8)):
             feats += [num / (den + 1e-3), den]
     return torch.stack(feats, 1)
 
+def idw_torch(P, vis, rvis, power=2.0, k=8):
+    """IDW of the residuals rvis (at node indices vis) evaluated at ALL nodes. Observed nodes exclude themselves (LOO),
+    so the value at a hidden / test node uses only labels that are visible. No gradients, no parameters."""
+    D = torch.cdist(P, P[vis]); D[vis, torch.arange(len(vis))] = float("inf")
+    kk = max(1, min(len(vis) - 1, len(vis) if k is None else int(k)))
+    d, idx = torch.topk(D, kk, dim=1, largest=False)
+    w = 1.0 / d.clamp_min(1e-6) ** power
+    return (w * rvis[idx]).sum(1) / w.sum(1)
+
 # ----------------------------------------------------------------------------- GCN
 class GCNNet(nn.Module):
     def __init__(self, in_dim, hidden=32, layers=2, dropout=0.1):
@@ -55,31 +68,45 @@ class GCNNet(nn.Module):
         self.out = nn.Linear(hidden, 1); nn.init.zeros_(self.out.weight); nn.init.zeros_(self.out.bias)   # untrained -> trend only
         self.p = dropout
 
-    def forward(self, X, ym, m, g):
-        h = torch.cat([X, ym[:, None], m[:, None], label_diffusion(ym, m, g)], 1)
+    def forward(self, X, ym, m, g, base=None):
+        parts = [X, ym[:, None], m[:, None], label_diffusion(ym, m, g)]
+        if base is not None: parts.append(base[:, None])
+        h = torch.cat(parts, 1)
         for lin in self.lins:
             h = F.dropout(F.relu(prop(lin(h), g)), self.p, self.training)
-        return self.out(h).squeeze(-1)
+        out = self.out(h).squeeze(-1)
+        return out if base is None else base + out                  # zero-init head -> starts exactly at the IDW baseline
 
 def _split_val(tr, rng, frac=0.2):
     perm = rng.permutation(tr); nv = max(3, int(round(len(perm) * frac))) if len(perm) >= 12 else 0
     return perm[nv:], perm[:nv]
 
-def fit_predict_gcn(u, tr, te, prep, hp, seed, cache):
+def fit_predict_gcn(u, tr, te, prep, hp, seed, cache, hybrid=False):
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
     N = len(u["y"]); g = get_graph(u, int(hp.get("k", 8)), cache)
     X = torch.tensor(prep["X"], dtype=torch.float32)
     rn = torch.zeros(N); rn[tr] = torch.tensor(prep["res"][tr] / prep["sigma"], dtype=torch.float32)   # test residuals never enter
-    model = GCNNet(X.shape[1] + 2 + 6, int(hp.get("hidden", 32)), int(hp.get("layers", 2)), float(hp.get("dropout", 0.1)))
+    if hybrid:
+        from rmbench_core import tune_idw_loo
+        Pt = torch.tensor(u["pos"], dtype=torch.float32)
+        p_idw, k_idw = tune_idw_loo(u["pos"][tr], prep["res"][tr])      # labeled set only
+    model = GCNNet(X.shape[1] + 2 + 6 + int(hybrid), int(hp.get("hidden", 32)), int(hp.get("layers", 2)), float(hp.get("dropout", 0.1)))
     steps = int(hp.get("steps", 150)); fit, val = _split_val(tr, rng)
 
     def run(visible, train):
         m = torch.zeros(N); m[visible] = 1.0
         model.train(train)
-        return model(X, rn * m, m, g)
+        base = None
+        if hybrid:
+            vt = torch.as_tensor(np.asarray(visible), dtype=torch.long)
+            base = idw_torch(Pt, vt, rn[vt], p_idw, k_idw)
+        return model(X, rn * m, m, g, base)
     if steps > 0:                                                 # steps == 0 is legal: returns the zero-init model (trend only)
         opt = torch.optim.AdamW(model.parameters(), lr=float(hp.get("lr", 1e-2)), weight_decay=float(hp.get("wd", 1e-4)))
         best, state, bad = float("inf"), None, 0
+        if hybrid and len(val):                                   # step 0 (= pure IDW) is a candidate, like KGNN's step 0
+            with torch.no_grad(): best = F.huber_loss(run(fit, False)[val], rn[val], delta=1.5).item()
+            state = {k: t.clone() for k, t in model.state_dict().items()}
         for s in range(steps):
             q = int(np.clip(round(rng.uniform(0.15, 0.5) * len(fit)), 1, max(1, len(fit) - 2)))
             pp = rng.permutation(fit); Q, V = pp[:q], pp[q:]
@@ -168,6 +195,7 @@ def fit_predict_kgnn(u, tr, te, prep, hp, seed):
 def predict_neural(method, hp, u, tr, te, prep, seed, cache):
     torch.set_num_threads(1)
     if method == "gcn": return fit_predict_gcn(u, tr, te, prep, hp, seed, cache)
+    if method == "gcn_krig": return fit_predict_gcn(u, tr, te, prep, hp, seed, cache, hybrid=True)
     if method == "kgnn": return fit_predict_kgnn(u, tr, te, prep, hp, seed)
     if method == "krig_untrained": return fit_predict_kgnn(u, tr, te, prep, {**hp, "steps": 0, "polar": hp.get("polar", False)}, seed)
     raise ValueError(method)

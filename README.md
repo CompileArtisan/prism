@@ -1,76 +1,100 @@
+# Sparse indoor radio-map estimation on DeepMIMO: IDW vs kriging vs graph models
 
-### The research question
+A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and graph neural models for predicting received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across units.
 
-The data is DeepMIMO ray-traced indoor scenarios: `i1_2p5`, `i1_2p4`, `i2_28b`, `i3_2p4` and `i3_60`. Given a few labeled received-signal-strength (RSS) points, the notebook predicts RSS at all the others and compares:
+**Headline (from the run on 2026-10-11):** on 48 transmitter maps of the `i1_2p5` scenario, a kriging-initialised graph model (KGNN) beats IDW at 30, 100 and 300 labels (5.7–7.3%) and beats global kriging at 300 labels (3.2%, about 0.002 dB). A plain label-aware GCN and an IDW-initialised GCN (`gcn_krig`) do not beat the classical baselines. The absolute differences are hundredths to thousandths of a dB. See [Results](#results) and [Limitations](#limitations).
 
-- **Classical baselines:** IDW and ordinary kriging, plus path-loss-detrended versions.
-- **Whole-graph GNNs:** GCN, GAT and a hybrid that learns a GNN residual on top of IDW, run on kNN and Delaunay graphs.
-- **Query-conditioned model:** `EdgeAwareStarGAT`, which predicts each target from K nearby labeled references (a SeaGAT-style formulation).
-- **Later additions:** the KGNN family (kriging-initialised, TX-polar message passing), residual-on-kriging models, and a refit of kriging with the same tuning budget as the GNNs.
+## Files
 
-The experiments cover density sweeps, topology effects, cross-scenario generalization, spatial-fold extrapolation, and paired statistical tests with Holm correction and power analysis. The notebook says it doesn't assume the GNNs win and reports null results.
+| File | Purpose |
+|---|---|
+| `radiomap_6g_sweep.ipynb` | The experiment: setup, units, split, correctness checks, tuning, evaluation, paired contrasts |
+| `rmbench_core.py` | Data loading and preprocessing, shared trend, train/tune/eval split, IDW and kriging, resumable executor, statistics (Wilcoxon, Holm) |
+| `rmbench_nn.py` | Torch models: label-aware `GCN`, `gcn_krig` hybrid, `KGNN`, and `krig_untrained` (no torch_geometric; the graph is three index tensors) |
 
-Loading a scenario gives you:
-- **positions**: (x, y, z) coordinates of receiver points
-- **rss**: the true signal strength at each point (this is the "ground truth" you're trying to predict elsewhere)
-- **env_feats**: features like distance-to-transmitter and a **LOS flag** (line-of-sight — whether a wall blocks the direct path)
+The notebook imports the two modules from its own directory, so all three files must sit together.
 
+## Methods
 
-### The two-pass design
+All methods predict the **same residual** after a shared log-distance trend fitted on the training labels only, so no method gets a better trend than another.
 
-Pass 1 derives every hyperparameter and setting from the data and freezes it in `derived.json`. Pass 2 runs the report with those frozen values, keeping the derivation pool out of the test sets (a leakage guard). Your N13 cell is the pass-1 orchestrator, `run_derivation()`:
+| Name | Description |
+|---|---|
+| `trend` | Trend only, no spatial term |
+| `idw` | Inverse-distance weighting, power and neighbourhood chosen by leave-one-out on the labeled points |
+| `krig_global` | Ordinary kriging with a variogram fitted on the labeled points |
+| `krig_local` | The same, using the K nearest labels |
+| `krig_untrained` | KGNN's local kriging with its fixed default covariance and no learning |
+| `gcn` | Label-aware GCN: geometric features, observed residual, mask and multi-hop label diffusion; trained by hiding random subsets of the labels |
+| `gcn_krig` | The same GCN predicting a correction to a labeled-points-only IDW baseline. The output layer is zero-initialised, and step 0 (pure IDW) is an early-stopping candidate |
+| `kgnn` | Kriging-initialised message-passing model with a learned covariance |
 
-1. **N2–N5:** data settings, `max_points` per scenario (how many points to subsample), and the derivation pool with its fingerprint.
-2. **N6:** trend mode, frequency exponent, clipping, number of calibration points.
-3. **N7:** IDW and kriging settings, and kNN `k` per density.
-4. **N8:** Optuna tuning of GCN, GAT and Hybrid, then training rules and the validation scheme.
-5. **N9–N10:** star-model tuning, spatial folds, k-means, and the number of seeds from a power pilot.
-6. **N12:** sensitivity report and `final_checks()`, which writes `derived.complete`.
+## Design rules
 
-It is resumable and parallel. `run_jobs` forks workers (auto-sized, at most 6, based on cores and free RAM), merges each finished job into `derived.json` immediately, and skips anything already derived via `have(...)`. If you interrupt it, it picks up from the partial file. The cells after it are `%%report` cells that only execute in pass 2.
+- **Unit = one transmitter.** Replicates are averaged inside a unit, then tests are paired across units.
+- **Tuning and evaluation units are disjoint** (16 tuning units, 49 evaluation units).
+- **Label-free features only** (`geo`, `geo_los`). Nothing is computed from the label's own channel.
+- **Power** is the incoherent sum over real paths. Points below the noise floor are dropped.
+- **Pre-specified contrasts, a cap on the number of tests and Holm correction** over all of them (33 tests in the current run).
+- **Resumable JSONL executor.** A failing job never kills a task, and finished tasks are skipped on rerun.
+- **Leak test** for every method (Section 3 of the notebook). A FAIL invalidates that method's column.
 
+## Setup
 
-### Turning points into a graph
+```bash
+pip install numpy scipy pandas matplotlib torch deepmimo
+```
 
-To use graph-based AI models, the scattered points need to be connected into a network (a **graph**), where each point is a **node** and connections between nearby points are **edges**. Two ways to draw these edges:
-- **k-NN graph**: connect each point to its *k* nearest neighbors (like "your 6 closest thermometers are your friends").
-- **Delaunay graph**: a triangulation of the floor plan that connects points in a way that avoids long skinny slivers — more like a natural mesh.
+DeepMIMO scenarios `i2_28b` and `i1_2p5` must be available locally or downloadable. In the notebook:
 
-Edges are also weighted by inverse distance (closer neighbors matter more), and weights are normalized so they behave like a proper weighted average.
+- `RUN_NEURAL = False` runs only the classical methods, with no torch needed.
+- `USE_SYNTHETIC = True` runs a fast offline smoke test on synthetic units.
 
-### The prediction models
+## Running
 
-Four families of models compete against each other:
+1. Restart the kernel (the modules are imported once, in Section 1).
+2. Run the notebook top to bottom. Run Section 3 (correctness checks) before trusting any number.
+3. On a 16-core machine (15 workers), the last run took about 9 min for tuning (96 tasks) and about 9 min for evaluation (735 tasks, 8 methods, 5880 job rows).
 
-1. **GCN (Graph Convolutional Network)** — a neural network that updates each point's prediction by averaging information from its graph neighbors, using the edge weights above.
-2. **GAT (Graph Attention Network)** — similar, but instead of fixed distance-based weights, it *learns* how much attention to pay to each neighbor (like deciding some neighbors are more "trustworthy" than others based on their features, not just distance).
-3. **IDW (Inverse Distance Weighting)** — a simple classical baseline: predict a point's value as a distance-weighted average of nearby *known* values. No learning involved, just geometry.
-4. **Kriging** — a classical geostatistics technique that models spatial correlation more rigorously (fits a "variogram" describing how similar nearby points tend to be) — the traditional gold-standard baseline this field compares against.
-5. **Hybrid-GNN-IDW** — a clever combo: let IDW handle the smooth, easy part of the signal decay, and train a GNN to learn only the *leftover error* (the "residual") — things like multipath effects and LOS/NLOS transitions that IDW can't capture. This is often easier than learning everything from scratch.
+**Cache gotcha.** `run_tasks` skips any task id already present in the JSONL file, and a task id covers all of its jobs. If you add a method to the job list and reuse an old cache file, the new method silently never runs. The notebook therefore uses `tune2.jsonl` / `eval2.jsonl` with prefixes `tune2` / `eval2`. Use a new file name and prefix whenever you change the job list or the code of an existing method.
 
-### Preprocessing tricks (important, easy to miss)
+## Results
 
-- **FSPL (Free-Space Path Loss)** is subtracted from raw RSS before training. This is the theoretical signal drop-off with distance in open space — stripping it out removes scenario-specific absolute power baked into the data, leaving a cleaner "residual" for the model to learn.
-- Features and residual RSS are **z-scored** (normalized to mean 0, std 1) — neural nets train much better on standardized numbers than raw physical units.
-- Only `dist_to_tx` and `los_flag` are fed into the models — **not raw (x, y, z) position**. Position is only used to build the graph. Why? Because "this point is at coordinate (3.1, -0.4)" doesn't mean anything similar between two different buildings — so if you fed raw position to the model, it would just memorize "where the strong-signal spot is in this specific building" instead of learning transferable physics.
+`i1_2p5`, 48 evaluation units, 5 replicates per unit, densities of 30 / 100 / 300 labels, 1000 test points. The shared trend alone has an RMSE of 0.15 dB. All methods sit between 0.05 and 0.11 dB.
 
-### The control flow — how everything runs together
+Percentages are the relative RMSE gain of the first method over the second (positive means the first is better). ✔ means significant after Holm correction over 33 tests.
 
-1. **Setup**: install packages, pick a scenario from the live catalog.
-2. **Load scenario**: get positions/RSS/features/frequency.
-3. **Build graph(s)**: k-NN and/or Delaunay edges from positions.
-4. **Split data**: randomly choose a small set of "labeled" (training) points and treat the rest as unlabeled ("test") points — simulating the real-world situation where you only have a few actual measurements.
-5. **Normalize**: fit mean/std stats *only* on the training points (never peek at test data), transform both train and test.
-6. **Train**: for each model, run a training loop (**epochs** = training passes) using **Adam** optimizer, with **early stopping** (stop once validation performance stops improving, to avoid overfitting) and **gradient clipping** (prevents unstable huge updates).
-7. **Predict + denormalize**: convert the model's normalized output back into real dBm units (adding the FSPL curve back in).
-8. **Score**: compute **RMSE** (root-mean-squared error — how far off predictions are on average) and **coverage accuracy** (did the model correctly say "covered" vs "dead zone" relative to a signal threshold?).
-9. **Sweep**: repeat all of this across combinations of:
-   - **density** (how many labeled points — sparse vs. dense),
-   - **topology** (k-NN vs. Delaunay),
-   - **model** (GCN, GAT, Hybrid, IDW, Kriging),
-   - **multiple random seeds** (to report results as mean ± standard deviation, not a single lucky/unlucky run).
-10. **Analyze**: pivot the results to explicitly quantify things like "does Delaunay beat k-NN?" rather than eyeballing a chart.
-11. **Cross-scenario generalization**: train the model on Building A, then test it — with zero further training — on Building B, in both directions. This checks whether the model learned genuine "physics" (distance/LOS → signal) rather than memorizing one building's layout. A small **calibration** step (a handful of test-building points) can correct for absolute power-level offsets between buildings, but those calibration points are excluded from the final scored results to avoid leaking test answers into evaluation.
-12. **Sparse-regime benchmark**: the final deliverable — specifically tests the hypothesis that GNNs beat classical methods most when you have very few measurements, since that's when their ability to share information across the graph gives them an edge over purely local methods like IDW.
+| Comparison | 30 labels | 100 labels | 300 labels |
+|---|---|---|---|
+| `kgnn` vs `idw` | +6.5% ✔ | +7.3% ✔ | +5.7% ✔ |
+| `kgnn` vs `krig_global` | +1.3% | +1.4% | +3.2% ✔ |
+| `kgnn` vs `krig_untrained` | +0.6% | +0.6% ✔ | +0.9% ✔ |
+| `gcn_krig` vs `idw` | −2.5% ✔ | −0.5% | −0.2% |
+| `gcn_krig` vs `krig_global` | −8.2% ✔ | −6.8% ✔ | −2.9% ✔ |
+| `gcn` vs `idw` | −13.0% ✔ | −9.5% ✔ | −9.3% ✔ |
+| `gcn` vs `krig_global` | −19.3% ✔ | −16.4% ✔ | −12.2% ✔ |
+| `krig_global` vs `idw` | +5.3% ✔ | +5.9% ✔ | +2.6% ✔ |
 
+The KGNN gain over `krig_global` is 0.0010–0.0018 dB, and over `idw` 0.0033–0.0063 dB.
 
+`i2_28b` has a single unit, so nothing can be tested there. Descriptively, at 300 labels KGNN has the lowest RMSE (about 0.54 dB vs 0.59 for IDW and 0.64 for global kriging).
+
+## Limitations
+
+- **One building layout.** The 48 units share a floor plan. The tests support "across transmitter positions in this layout", not "across buildings".
+- **Tiny effect sizes.** The KGNN win over kriging is about 0.002 dB on a 0.15 dB trend residual. This scenario is 100% line-of-sight, so the path-power target is close to a deterministic function of distance. Report dB values next to percentages.
+- **The kriging comparison is the strong one.** IDW is the weaker baseline. Only the 300-label win over global kriging survives correction.
+- **Single-unit scenario.** `i2_28b` is descriptive only.
+- **Layout and band are confounded** across `i2_28b` (28 GHz) and `i1_2p5` (2.5 GHz). Everything here is in-domain, and no cross-scenario claim is made.
+- **Shared trend** is fitted on the labels, which is noisy at 30 labels and benefits every method equally.
+- **Small tuning budget** (6 random-search trials per neural method, 2 replicates). The neural methods may be under-tuned relative to the classical ones.
+- **`gcn_krig` at 30 labels** uses only 6 labeled points for early stopping. Its loss to IDW there may reflect noisy selection, not the method. This was not tested.
+- **The notebook's own provenance note is outdated.** Cell 0 and Section 8 say the neural paths and the DeepMIMO loader were not executed. They were executed in the run described above.
+
+## Reproducibility
+
+Results come from the saved notebook outputs. Seeds are fixed in the config (`seed = 0`), and per-task seeds are derived from a stable hash of the task id. Tuned hyper-parameters in the last run:
+
+- `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features
+- `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features
+- `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3

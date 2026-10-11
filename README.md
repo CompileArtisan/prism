@@ -79,6 +79,38 @@ The KGNN gain over `krig_global` is 0.0010–0.0018 dB, and over `idw` 0.0033–
 
 `i2_28b` has a single unit, so nothing can be tested there. Descriptively, at 300 labels KGNN has the lowest RMSE (about 0.54 dB vs 0.59 for IDW and 0.64 for global kriging).
 
+## Sensitivity variants (automatic, Section 7c)
+
+After the primary analysis the notebook runs a fixed list of variants without any manual step. The list is declared in code before any variant result exists, and every variant is reported:
+
+| Variant | What changes | Purpose |
+|---|---|---|
+| `trend_fspl` | Exponent fixed at 2, only the offset fitted | How methods behave when the shared trend is misspecified |
+| `blocked` | Test set is one contiguous region | Labels are no longer interleaved with test points |
+| `channel` | `compute_channels()` power, calibrated to the path sum | Added **only** if the built-in diagnostic finds it differs from `path_sum` by more than `CHANNEL_GATE_DB` (0.05 dB std); otherwise it would repeat the primary run |
+
+Hyper-parameters are those tuned once on the tuning units under the primary settings, so each variant costs about one evaluation pass (roughly 9 min on 15 workers). Holm correction is applied within each variant's own contrast family. The output is one table of relative gains (`*` = significant after Holm) for every variant, plus a count of how many (variant, density) cells show each key method significantly better, significantly worse or neither. `replicate_table` gives descriptive tables for single-unit scenarios such as `i2_28b`. Set `RUN_VARIANTS = False` to skip the section.
+
+These code paths were tested offline on synthetic units and a mocked DeepMIMO dataset only (classical methods; no torch in the test environment). Run them on real data before relying on them.
+
+## Sensitivity results (run 2026-10-11, `i1_2p5`, 48 units; `*` = significant after Holm within each variant)
+
+Relative gain of the first method over the second at 30 / 100 / 300 labels.
+
+| Contrast | primary | `trend_fspl` | `blocked` | `channel` |
+|---|---|---|---|---|
+| `kgnn` vs `idw` | +6.5* / +7.3* / +5.7* | +6.7* / +7.2* / +5.7* | +5.2 / +4.7* / +3.6* | −4.2* / +4.0* / +3.5* |
+| `kgnn` vs `krig_global` | +1.3 / +1.4 / +3.2* | +1.3 / +1.2 / +3.1* | −0.5 / −3.9 / −9.6 | −4.9* / +2.6* / +4.1* |
+| `gcn_krig` vs `idw` | −2.5* / −0.5 / −0.2 | −2.3* / −0.5 / −0.3 | −0.4 / −0.1 / +0.0 | −1.9* / −1.1* / −0.5* |
+| `gcn_krig` vs `krig_global` | −8.2* / −6.8* / −2.9* | −8.3* / −7.1* / −3.1* | −6.4 / −9.2 / −13.6 | −2.5* / −2.5* / +0.0 |
+| `gcn` vs `idw` | −13.0* / −9.5* / −9.3* | −16.3* / −11.3* / −10.1* | +0.7 / −0.2 / −1.5 | −5.7* / −3.9* / −3.5* |
+
+- `trend_fspl` reproduces the primary results almost exactly, so trend misspecification does not drive them.
+- `kgnn` beats `idw` in 10 of 12 (variant, density) cells and is worse in one (`channel`, 30 labels).
+- `kgnn` beats `krig_global` significantly in 4 of 12 cells (primary, `trend_fspl` and `channel` at 300 labels, and `channel` at 100), is significantly worse in 1 (`channel`, 30 labels), and under `blocked` the sign reverses but none of the differences is significant.
+- No GCN variant beats `idw` or `krig_global` in any cell.
+- The 12 cells are not independent (same units, and `trend_fspl` is nearly a copy of the primary run), so the counts describe consistency, not 12 separate confirmations.
+
 ## Limitations
 
 - **One building layout.** The 48 units share a floor plan. The tests support "across transmitter positions in this layout", not "across buildings".
@@ -89,7 +121,7 @@ The KGNN gain over `krig_global` is 0.0010–0.0018 dB, and over `idw` 0.0033–
 - **Shared trend** is fitted on the labels, which is noisy at 30 labels and benefits every method equally.
 - **Small tuning budget** (6 random-search trials per neural method, 2 replicates). The neural methods may be under-tuned relative to the classical ones.
 - **`gcn_krig` at 30 labels** uses only 6 labeled points for early stopping. Its loss to IDW there may reflect noisy selection, not the method. This was not tested.
-- **The notebook's own provenance note is outdated.** Cell 0 and Section 8 say the neural paths and the DeepMIMO loader were not executed. They were executed in the run described above.
+- **Target definition matters.** The diagnostic (transmitter 0 of `i1_2p5`) shows path-power-sum residual of 0.35 dB after the fitted trend and 0.45 dB with a fixed free-space exponent, but 1.13 dB (fitted) and 1.18 dB (fixed) for channel power, which differs from the path sum by 1.10 dB std after removing a constant. So the larger residuals in the other pipeline come from the channel-power target, not from its trend.
 
 ## Reproducibility
 

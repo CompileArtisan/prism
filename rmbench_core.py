@@ -23,7 +23,12 @@ DEFAULT_CFG = dict(
     min_unit_points=600,                               # unit dropped if fewer points survive noise filter
     ptx_dbm=20.0, noise_bw_hz=1e8, noise_nf_db=7.0,    # noise floor = -174 + 10log10(BW) + NF  (~ -87 dBm)
     clip=4.0, clip_audit_max=0.05,                     # feature dropped if >5% of values clip at +-4 sd
-    tune_frac=0.25, seed=0)
+    tune_frac=0.25, seed=0,
+    # --- analysis variants. The PRIMARY analysis is the defaults below; any other value is a pre-declared sensitivity run. ---
+    power_def="path_sum",      # "path_sum": incoherent sum of DeepMIMO per-path powers | "channel": |H|^2 from compute_channels(), calibrated to path_sum
+    split_mode="random",       # "random": test points drawn uniformly | "blocked": test = the n_test points nearest a random centre
+    block_buffer=0.0,          # blocked only: labeled points closer than this (position units) to any test point are removed
+    trend_mode="fit")          # "fit": log-distance exponent fitted on the labels | "fspl": exponent fixed at 2, only the offset fitted
 
 def stable_hash(*parts) -> int:
     return zlib.crc32("|".join(map(str, parts)).encode()) & 0xFFFFFFFF
@@ -143,10 +148,8 @@ def _dm_load(dm, scenario, **kw):
     finally:
         dm.Scene.from_data = orig
 
-def load_deepmimo_units(scenario, cfg, seed=0):
-    """One raw dict per transmitter. Uses per-path power (``dataset.power``) when available -> no heavy
-    compute_channels call. VERIFY on first run: attribute names / dBm units / los coding of your DeepMIMO version."""
-    import re, deepmimo as dm
+def _dm_datasets(scenario, cfg, seed=0):
+    import deepmimo as dm
     dm.download(scenario)
     rx_set = next(s for s in dm.get_txrx_sets(scenario) if s.is_rx and not s.is_tx)
     n_pts = rx_set.num_points
@@ -155,26 +158,78 @@ def load_deepmimo_units(scenario, cfg, seed=0):
         data = _dm_load(dm, scenario, rx_sets={rx_set.id: keep})
     else:
         data = _dm_load(dm, scenario, rx_sets="rx_only")
-    dsets = data.datasets if isinstance(data, dm.MacroDataset) else [data]
-    out = []
-    for k, ds in enumerate(dsets):
+    return data.datasets if isinstance(data, dm.MacroDataset) else [data]
+
+def _path_power_dbm(ds):
+    """Per-path power (N, P) in dBm, NaN = no path. Fallback when ds.power is missing: per-point channel power as one column."""
+    try:
+        return np.asarray(ds.power, float)
+    except Exception:
+        ch = np.abs(np.asarray(ds.compute_channels())) ** 2
+        return (10 * np.log10(ch.mean(axis=(1, 2)).mean(axis=1) + 1e-30))[:, None]
+
+def _channel_power_dbm(ds):
+    """|H|^2 from compute_channels(): mean over the two antenna axes, then over the last (slot) axis, in dB, then shifted by the
+    median difference to the DeepMIMO path-power sum so that the noise-floor test stays on the dBm scale (RMSE is unaffected).
+    ASSUMES compute_channels() returns (N, rx_ant, tx_ant, slots). If the slots are time-domain taps this is the path sum up to a
+    constant -- run target_diagnostic() to see whether it differs from path_sum at all."""
+    ch = np.asarray(ds.compute_channels())
+    if ch.ndim != 4:
+        raise ValueError(f"compute_channels() returned shape {ch.shape}; expected (N, rx_ant, tx_ant, slots)")
+    lin = (np.abs(ch) ** 2).mean(axis=(1, 2)).mean(axis=1)
+    db = np.full(len(lin), np.nan); ok = lin > 0; db[ok] = 10 * np.log10(lin[ok])
+    try:
+        ref = sum_path_power_dbm(np.asarray(ds.power, float)); m = np.isfinite(ref) & np.isfinite(db) & (ref > -250)
+        off = float(np.median(ref[m] - db[m])) if m.sum() >= 20 else 0.0
+    except Exception:
+        off = 0.0
+    return db + off
+
+def _carrier_ghz(ds, scenario):
+    import re
+    for a in ("carrier_freq", "freq", "frequency"):
         try:
-            pw = np.asarray(ds.power, float)
-        except Exception:                                    # fallback: sum of per-path |h|^2 (mean over antennas)
-            ch = np.abs(np.asarray(ds.compute_channels())) ** 2
-            pw = 10 * np.log10(ch.mean(axis=(1, 2)) + 1e-30)
-        f = None
-        for a in ("carrier_freq", "freq", "frequency"):
-            try:
-                v = getattr(ds, a)
-            except Exception:
-                continue
-            if v is not None:
-                f = float(v) / 1e9 if float(v) > 1000 else float(v); break
-        if f is None:
-            m = re.search(r"_(\d+)p?(\d*)", scenario); f = float(f"{m.group(1)}.{m.group(2) or 0}")
+            v = getattr(ds, a)
+        except Exception:
+            continue
+        if v is not None:
+            return float(v) / 1e9 if float(v) > 1000 else float(v)
+    m = re.search(r"_(\d+)p?(\d*)", scenario)
+    return float(f"{m.group(1)}.{m.group(2) or 0}")
+
+def load_deepmimo_units(scenario, cfg, seed=0):
+    """One raw dict per transmitter. cfg["power_def"]: "path_sum" (default; DeepMIMO per-path power, summed in preprocess_unit)
+    or "channel" (see _channel_power_dbm)."""
+    mode = cfg.get("power_def", "path_sum")
+    if mode not in ("path_sum", "channel"):
+        raise ValueError(f"unknown power_def {mode!r}")
+    out = []
+    for k, ds in enumerate(_dm_datasets(scenario, cfg, seed)):
+        pw = _path_power_dbm(ds) if mode == "path_sum" else _channel_power_dbm(ds)[:, None]
         out.append(dict(pos3=np.asarray(ds.rx_pos), tx3=np.asarray(ds.tx_pos).reshape(-1)[:3], power_paths_dbm=pw,
-                        los=np.asarray(ds.los), freq_ghz=f, name=f"dm|{scenario}|{k}", scenario=scenario, tx=k))
+                        los=np.asarray(ds.los), freq_ghz=_carrier_ghz(ds, scenario), name=f"dm|{scenario}|{k}", scenario=scenario, tx=k))
+    return out
+
+def target_diagnostic(scenario, cfg, k=0, seed=0):
+    """DIAGNOSTIC ONLY (trends are fitted on ALL points of one transmitter, nothing here enters a result table).
+    For each candidate target reports the spread of the data and the residual spread after (a) the fitted log-distance trend and
+    (b) a fixed free-space exponent (n=2, offset fitted). Also reports how far `channel` is from `path_sum` after removing a constant.
+    Use it to see (1) whether `channel` differs from `path_sum` at all and (2) how much of the difference between pipelines is
+    trend misspecification rather than the target definition."""
+    ds = _dm_datasets(scenario, cfg, seed)[k]
+    pos3 = np.asarray(ds.rx_pos); tx3 = np.asarray(ds.tx_pos).reshape(-1)[:3]; d = np.linalg.norm(pos3 - tx3, axis=1)
+    cands = {"path_sum": sum_path_power_dbm(_path_power_dbm(ds))}; out = {"scenario": scenario, "tx": k}
+    try: cands["channel"] = _channel_power_dbm(ds)
+    except Exception as e: out["channel_error"] = repr(e)[:300]
+    for name, p in cands.items():
+        m = np.isfinite(p); x = 10 * np.log10(np.maximum(d[m], 1e-3))
+        a, n = fit_trend(d[m], p[m]); r_fit = p[m] - trend_eval(d[m], a, n)
+        a2 = float(np.mean(p[m] + 2.0 * x)); r_fspl = p[m] - (a2 - 2.0 * x)
+        out[name] = dict(n_points=int(m.sum()), los_frac=float(np.mean(np.asarray(ds.los)[m] == 1)), y_std_db=float(p[m].std()),
+                         fitted_exponent=float(n), resid_std_fitted_trend_db=float(r_fit.std()), resid_std_fspl_n2_db=float(r_fspl.std()))
+    if "channel" in cands:
+        m = np.isfinite(cands["channel"]) & np.isfinite(cands["path_sum"]); df = cands["channel"][m] - cands["path_sum"][m]
+        out["channel_minus_path_sum_std_db"] = float(np.std(df - np.median(df)))
     return out
 
 def prefetch_units(unit_specs, cfg):
@@ -262,20 +317,38 @@ def fit_trend(d, y):
 def trend_eval(d, a, n):
     return a - 10 * n * np.log10(np.maximum(d, 1e-3))
 
-def prepare(u, tr, fset="geo", clip=4.0):
+def fit_trend_fixed(d, y, n=2.0):
+    """Exponent fixed (default: free space), only the offset is fitted. Used for the trend-misspecification sensitivity run."""
+    x = 10 * np.log10(np.maximum(d, 1e-3))
+    return float(np.mean(y + n * x)), float(n)
+
+def prepare(u, tr, fset="geo", clip=4.0, trend_mode="fit"):
     """Everything a model may use, computed from TRAIN labels only."""
-    a, n = fit_trend(u["d"][tr], u["y"][tr])
+    a, n = (fit_trend_fixed if trend_mode == "fspl" else fit_trend)(u["d"][tr], u["y"][tr])
     res = u["y"] - trend_eval(u["d"], a, n)                      # residual; models only ever index res[tr]
     sigma = float(res[tr].std() + 1e-6)
     Z, fr = standardize(feature_matrix(u, fset), tr, clip)
     return dict(a=a, n=n, res=res, sigma=sigma, X=Z, clipped=fr, trend=trend_eval(u["d"], a, n))
 
 # ----------------------------------------------------------------------------- splits
-def split_for(u, density, rep, n_test):
-    """Fixed test set per unit (independent of method/density/rep); labeled sets nested in density, new per rep."""
+def split_for(u, density, rep, n_test, mode="random", buffer=0.0):
+    """Fixed test set per unit (independent of method/density/rep); labeled sets nested in density, new per rep.
+    mode="random" is the original behaviour (bit-identical). mode="blocked": the test set is the n_test points nearest a random
+    centre (one contiguous region), and labeled points within `buffer` of any test point are removed from the pool."""
     N = len(u["y"]); nt = min(n_test, N - density - 1)
-    test = np.sort(np.random.default_rng(stable_hash("test", u["name"])).choice(N, nt, replace=False))
+    rng_t = np.random.default_rng(stable_hash("test", u["name"]))
+    if mode == "random":
+        test = np.sort(rng_t.choice(N, nt, replace=False))
+    elif mode == "blocked":
+        centre = u["pos"][int(rng_t.integers(N))]
+        test = np.sort(np.argsort(np.linalg.norm(u["pos"] - centre, axis=1), kind="stable")[:nt])
+    else:
+        raise ValueError(f"unknown split_mode {mode!r}")
     pool = np.setdiff1d(np.arange(N), test)
+    if mode == "blocked" and buffer > 0:
+        pool = pool[cKDTree(u["pos"][test]).query(u["pos"][pool])[0] > buffer]
+    if len(pool) < density:
+        raise ValueError(f"only {len(pool)} labelable points left for density {density} ({mode} split, buffer {buffer})")
     perm = np.random.default_rng([stable_hash("rep", u["name"]), rep]).permutation(pool)
     return perm[:density], test
 
@@ -424,7 +497,7 @@ def run_task(task):
     t0 = time.time()
     try:
         u = get_unit(task["unit"], cfg["cache_dir"])
-        tr, te = split_for(u, task["density"], task["rep"], cfg["n_test"])
+        tr, te = split_for(u, task["density"], task["rep"], cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0))
     except Exception:
         return [dict(task_id=task["id"], unit=task["unit"], density=task["density"], rep=task["rep"], name=j["name"],
                      method=j["method"], status="fail", err=traceback.format_exc(limit=3)) for j in task["jobs"]]
@@ -436,7 +509,7 @@ def run_task(task):
         t1 = time.time()
         try:
             fs = j.get("hp", {}).get("fset", "geo")
-            if fs not in preps: preps[fs] = prepare(u, tr, fs, cfg["clip"])
+            if fs not in preps: preps[fs] = prepare(u, tr, fs, cfg["clip"], cfg.get("trend_mode", "fit"))
             seed = stable_hash(u["name"], task["rep"], j["name"]) % 100000
             pred, info = predict_method(j["method"], j.get("hp", {}), u, tr, te, preps[fs], seed, _GRAPHS)
             e = pred - u["y"][te]
@@ -584,6 +657,46 @@ def paired_contrasts(df, contrasts, alpha=0.05, max_tests=24, seed=0):
         out["p_holm"] = holm(out.p.values); out["significant"] = out.p_holm < alpha
         out["underpowered"] = out.min_attainable_p >= alpha
     return out
+
+def replicate_table(df, refs=("idw", "krig_global"), max_units=1):
+    """DESCRIPTIVE table for scenarios with <= max_units units (no paired test across units is possible there).
+    Per (scenario, density, method): mean and sd of RMSE over labeled-set replicates, and the share of replicates in which the
+    method beat each reference. Replicates share one map and one test set, so this is NOT evidence of generalisation."""
+    ok = df[df.status == "ok"]
+    cnt = ok.groupby("scenario").parent.nunique(); scen = cnt[cnt <= max_units].index
+    g = ok[ok.scenario.isin(scen)].groupby(["scenario", "density", "name", "rep"], as_index=False).rmse.mean()
+    rows = []
+    for (sc, dn), h in g.groupby(["scenario", "density"]):
+        w = h.pivot(index="rep", columns="name", values="rmse")
+        for m in w.columns:
+            row = dict(scenario=sc, density=dn, name=m, rmse_mean=w[m].mean(), rmse_sd=w[m].std(ddof=1), n_rep=int(w[m].notna().sum()))
+            for r in refs:
+                if r in w and m != r: row[f"beats_{r}"] = float((w[m] < w[r]).mean())
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+def variant_table(pc_by_tag, key_pairs):
+    """pc_by_tag: {variant: paired_contrasts frame}. Compact view: relative gain of A over B in %, '*' = significant after Holm
+    (Holm is applied within each variant's own contrast family). EVERY variant is shown; none is selected."""
+    rows = []
+    for tag, pc in pc_by_tag.items():
+        for (A, B) in key_pairs:
+            for _, r in pc[(pc.A == A) & (pc.B == B)].iterrows():
+                rows.append(dict(variant=tag, contrast=f"{A} vs {B}", scenario=r.scenario, density=int(r.density),
+                                 cell=f"{r.rel_gain_pct:+.1f}%{'*' if r.significant else ''}"))
+    if not rows: return pd.DataFrame()
+    return pd.DataFrame(rows).pivot_table(index=["scenario", "contrast", "variant"], columns="density", values="cell", aggfunc="first")
+
+def robustness_summary(pc_by_tag, key_pairs):
+    """For each contrast: over all (variant, scenario, density) cells, how many show A significantly better / worse / neither."""
+    rows = []
+    for (A, B) in key_pairs:
+        n = better = worse = 0
+        for pc in pc_by_tag.values():
+            g = pc[(pc.A == A) & (pc.B == B)]
+            n += len(g); better += int((g.significant & (g.mean_delta_db > 0)).sum()); worse += int((g.significant & (g.mean_delta_db < 0)).sum())
+        if n: rows.append(dict(contrast=f"{A} vs {B}", cells=n, A_sig_better=better, A_sig_worse=worse, not_significant=n - better - worse))
+    return pd.DataFrame(rows)
 
 def rank_table(df):
     ul = unit_level(df)

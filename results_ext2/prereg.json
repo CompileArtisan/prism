@@ -1,0 +1,299 @@
+{
+ "created_utc": "2026-10-11T11:44:02.007441Z",
+ "sha256": "97162105f4e8359af3ccf827a9ee87dc7e578d52a82dae36021611be05e5cac5",
+ "spec": {
+  "block_buffer": 0.0,
+  "claims": [
+   "H1: tuned GNNs (gcn_knn_tuned, gat_del_tuned) have lower RMSE than idw",
+   "H2: in side-information families, side-information GNNs have lower RMSE than rk_side (the fair classical comparator), not just than idw",
+   "H3: GNNs pre-trained on other layouts (xfer_*) have lower RMSE than idw at the held-out layout",
+   "A superiority claim for GNNs is made only for a contrast that is significantly better after Holm in BOTH splits; every other outcome is reported as is."
+  ],
+  "contrasts_common": [
+   [
+    "idw",
+    "trend"
+   ],
+   [
+    "krig_global",
+    "idw"
+   ],
+   [
+    "kgnn",
+    "idw"
+   ],
+   [
+    "gcn_knn",
+    "idw"
+   ],
+   [
+    "gat_del",
+    "idw"
+   ],
+   [
+    "gat_del",
+    "gcn_knn"
+   ],
+   [
+    "kgnn_tuned",
+    "kgnn"
+   ],
+   [
+    "gcn_knn_tuned",
+    "gcn_knn"
+   ],
+   [
+    "gat_del_tuned",
+    "gat_del"
+   ],
+   [
+    "kgnn_tuned",
+    "idw"
+   ],
+   [
+    "gcn_knn_tuned",
+    "idw"
+   ],
+   [
+    "gat_del_tuned",
+    "idw"
+   ]
+  ],
+  "contrasts_outage": [
+   [
+    "krig_global",
+    "idw"
+   ],
+   [
+    "kgnn_tuned",
+    "idw"
+   ],
+   [
+    "gcn_knn_tuned",
+    "idw"
+   ],
+   [
+    "gat_del_tuned",
+    "idw"
+   ]
+  ],
+  "contrasts_side": [
+   [
+    "rk_side",
+    "idw"
+   ],
+   [
+    "gcn_knn_side",
+    "rk_side"
+   ],
+   [
+    "gat_del_side",
+    "rk_side"
+   ],
+   [
+    "gcn_knn_side",
+    "gcn_knn"
+   ],
+   [
+    "gat_del_side",
+    "gat_del"
+   ],
+   [
+    "gat_del_side",
+    "idw"
+   ],
+   [
+    "gcn_knn_side_tuned",
+    "rk_side"
+   ],
+   [
+    "gat_del_side_tuned",
+    "rk_side"
+   ]
+  ],
+  "contrasts_xfer_geo": [
+   [
+    "xfer_gat_del",
+    "idw"
+   ],
+   [
+    "xfer_gcn_knn",
+    "idw"
+   ],
+   [
+    "xfer_gat_del",
+    "gat_del"
+   ],
+   [
+    "xfer_gcn_knn",
+    "gcn_knn"
+   ],
+   [
+    "xfer_gat_del",
+    "within_gat_del"
+   ],
+   [
+    "xfer_gcn_knn",
+    "within_gcn_knn"
+   ],
+   [
+    "xferft_gat_del",
+    "xfer_gat_del"
+   ],
+   [
+    "xferft_gcn_knn",
+    "xfer_gcn_knn"
+   ]
+  ],
+  "contrasts_xfer_side": [
+   [
+    "xfer_gat_del_side",
+    "rk_side"
+   ],
+   [
+    "xfer_gcn_knn_side",
+    "rk_side"
+   ],
+   [
+    "xfer_gat_del_side",
+    "idw"
+   ],
+   [
+    "xfer_gcn_knn_side",
+    "idw"
+   ],
+   [
+    "xfer_gat_del_side",
+    "gat_del_side"
+   ],
+   [
+    "xfer_gcn_knn_side",
+    "gcn_knn_side"
+   ],
+   [
+    "xferft_gat_del_side",
+    "xfer_gat_del_side"
+   ],
+   [
+    "xferft_gcn_knn_side",
+    "xfer_gcn_knn_side"
+   ]
+  ],
+  "designed_after_seeing_exploratory": [
+   "robust trend policy (the 15-label failure)",
+   "gated outage metrics and threshold choice",
+   "cross-fitted tuning",
+   "side-information comparator rk_side",
+   "choice of datasets / second simulator"
+  ],
+  "earlier_runs": "exploratory (2 UJI floors, DeepMIMO narrowband, original TOPO/XFER lists). Not reused.",
+  "families": {
+   "dm_path": {
+    "by": "parent",
+    "densities": [
+     30,
+     100,
+     300
+    ],
+    "infer": [
+     "i1_2p5"
+    ],
+    "n_layouts": 3,
+    "n_parents": 27,
+    "n_test": 1000,
+    "n_units": 27,
+    "outage_abs_dbm": [],
+    "outage_q": [
+     0.1,
+     0.25
+    ],
+    "primary": "f1_q10",
+    "side": true
+   },
+   "uji": {
+    "by": "parent",
+    "densities": [
+     5,
+     10,
+     20
+    ],
+    "infer": null,
+    "n_layouts": 3,
+    "n_parents": 12,
+    "n_test": 20,
+    "n_units": 96,
+    "outage_abs_dbm": [
+     -85,
+     -80,
+     -77,
+     -70
+    ],
+    "outage_q": [
+     0.25,
+     0.5
+    ],
+    "primary": "f1_q25",
+    "side": false
+   },
+   "wall": {
+    "by": "layout",
+    "densities": [
+     20,
+     50,
+     100
+    ],
+    "infer": null,
+    "n_layouts": 12,
+    "n_parents": 12,
+    "n_test": 200,
+    "n_units": 72,
+    "outage_abs_dbm": [
+     -60,
+     -50
+    ],
+    "outage_q": [
+     0.1,
+     0.25
+    ],
+    "primary": "f1_q10",
+    "side": true
+   }
+  },
+  "holm": "one family per (dataset, split, contrast list); cap = contrasts x densities x inference scenarios",
+  "outage": {
+   "abs_threshold_rule": "every layout has 10-90% below it",
+   "min_class": 8,
+   "min_skill": 0.2,
+   "ref": "idw"
+  },
+  "reps": [
+   100,
+   101,
+   102,
+   103,
+   104
+  ],
+  "splits": [
+   "random",
+   "blocked"
+  ],
+  "test_salt": "conf1",
+  "title": "radio-map extension v2, confirmatory design",
+  "transfer": {
+   "finetune_steps": 30,
+   "n_src": 40,
+   "steps": 1500
+  },
+  "trend_policy": "robust",
+  "tuning": {
+   "enabled": true,
+   "max_tune_units": 40,
+   "n_folds": 2,
+   "n_trials": 8,
+   "objective": "mean over densities of unit-level mean RMSE on units disjoint (by parent, or by layout for wall) from the evaluation fold; trial 0 = defaults",
+   "salt": "tune",
+   "spaces": "rc.GCN_SPACE (no fset; +heads for GAT; no k for Delaunay) and rc.KGNN_SPACE",
+   "tune_rep": 2
+  }
+ }
+}

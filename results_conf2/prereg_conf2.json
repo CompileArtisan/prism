@@ -1,0 +1,197 @@
+{
+ "created_utc": "2026-10-12T14:41:21.203653Z",
+ "sha256": "e8a2305db2926a20dc623ea480014606f8f71072b5ba33efe720584fa6c3616b",
+ "spec": {
+  "block_buffer": 0.0,
+  "claim_rule": "A contrast (A,B) is SUPPORTED for a claim-eligible family only if, in EVERY split and at EVERY density of that family, it is Holm-significant at parent level in the claimed direction AND the layout-level cluster-bootstrap 95% CI excludes 0 in the same direction (needs >= 5 layouts). EQUIVALENT only if the 95% CI of the relative RMSE difference lies inside +/- margin in every cell (needs >= 8 parents). Anything else is NOT SUPPORTED.",
+  "claims": [
+   "H4 (primary): kgnn has lower RMSE than krig_global",
+   "H4b: kgnn has lower RMSE than idw; krig_global has lower RMSE than idw (replication of round 1)",
+   "H5 (primary): kgnn_side has lower RMSE than rk_side",
+   "H5b: kgnn_side vs krig_side; krig_side vs rk_side; kgnn_side vs kgnn",
+   "Nothing outside these lists is tested confirmatorily. Any other contrast computed from these results is exploratory and must be labelled so."
+  ],
+  "contrasts_krig": [
+   [
+    "kgnn",
+    "krig_global"
+   ],
+   [
+    "kgnn",
+    "idw"
+   ],
+   [
+    "krig_global",
+    "idw"
+   ]
+  ],
+  "contrasts_side2": [
+   [
+    "kgnn_side",
+    "rk_side"
+   ],
+   [
+    "kgnn_side",
+    "krig_side"
+   ],
+   [
+    "krig_side",
+    "rk_side"
+   ],
+   [
+    "kgnn_side",
+    "kgnn"
+   ]
+  ],
+  "designed_after_seeing_round1": [
+   "the contrasts kgnn vs krig_global and kgnn_side vs rk_side (round 1 showed kgnn ~ krig_global and rk_side >> side GNNs)",
+   "the methods krig_side and kgnn_side",
+   "the SODIndoorLoc dataset and the pooled real_wifi family",
+   "the 2% equivalence margin",
+   "dropping the GCN/GAT arms, tuning and transfer in this round",
+   "the layout-level cluster bootstrap and the minimum-n rules"
+  ],
+  "equivalence_margin_pct": 2.0,
+  "families": {
+   "dm_path": {
+    "claim_eligible": false,
+    "densities": [
+     30,
+     100,
+     300
+    ],
+    "infer": [
+     "i1_2p5"
+    ],
+    "n_layouts": 3,
+    "n_parents": 27,
+    "n_test": 1000,
+    "n_units": 27,
+    "side": true
+   },
+   "real_wifi": {
+    "claim_eligible": true,
+    "densities": [
+     5,
+     10,
+     20
+    ],
+    "infer": null,
+    "n_layouts": 6,
+    "n_parents": 17,
+    "n_test": "per member",
+    "n_units": 139,
+    "pooled_from": [
+     "uji",
+     "sod"
+    ],
+    "side": false
+   },
+   "sod": {
+    "claim_eligible": false,
+    "densities": [
+     5,
+     10,
+     20,
+     60
+    ],
+    "infer": null,
+    "n_layouts": 3,
+    "n_parents": 5,
+    "n_test": 40,
+    "n_units": 50,
+    "side": false
+   },
+   "uji": {
+    "claim_eligible": false,
+    "densities": [
+     5,
+     10,
+     20
+    ],
+    "infer": null,
+    "n_layouts": 3,
+    "n_parents": 12,
+    "n_test": 20,
+    "n_units": 89,
+    "side": false
+   },
+   "wall": {
+    "claim_eligible": true,
+    "densities": [
+     20,
+     50,
+     100
+    ],
+    "infer": null,
+    "n_layouts": 16,
+    "n_parents": 16,
+    "n_test": 200,
+    "n_units": 96,
+    "side": true
+   }
+  },
+  "fresh": {
+   "dm_path": "NOT fresh units (same transmitters); fresh test salt and replicate ids only; never used for a claim",
+   "reps": "200..",
+   "sod": "new dataset",
+   "test_salt": "conf2",
+   "uji": "new APs (round-1 units excluded), seed 2",
+   "wall": "new layouts (seed 2, 16 layouts)"
+  },
+  "holm": "one family per (dataset, split, contrast list); cap = contrasts x densities x inference scenarios",
+  "methods": {
+   "common": [
+    "trend",
+    "idw",
+    "krig_global",
+    "kgnn"
+   ],
+   "side": [
+    "rk_side",
+    "krig_side",
+    "kgnn_side"
+   ]
+  },
+  "min_layouts_for_claim": 5,
+  "min_parents_for_equivalence": 8,
+  "pooled": {
+   "densities": [
+    5,
+    10,
+    20
+   ],
+   "members": [
+    "uji",
+    "sod"
+   ],
+   "name": "real_wifi"
+  },
+  "primary": [
+   [
+    "kgnn",
+    "krig_global"
+   ],
+   [
+    "kgnn_side",
+    "rk_side"
+   ]
+  ],
+  "reps": [
+   200,
+   201,
+   202,
+   203,
+   204
+  ],
+  "round1_prereg_sha256": "97162105f4e8359af3ccf827a9ee87dc7e578d52a82dae36021611be05e5cac5",
+  "splits": [
+   "random",
+   "blocked"
+  ],
+  "test_salt": "conf2",
+  "title": "radio-map extension, round 2: pre-specified replication on fresh data",
+  "trend_policy": "robust",
+  "tuning": "none (library defaults: Kmax=12, s2_init=0.3, 150 steps)"
+ }
+}

@@ -1,0 +1,11 @@
+family,A,B,primary,status,cells,better,worse,equiv,open,missing
+real_wifi,kgnn,krig_global,True,NOT SUPPORTED,6,5,0,0,1,0
+real_wifi,kgnn,idw,False,NOT SUPPORTED,6,3,0,0,3,0
+real_wifi,krig_global,idw,False,NOT SUPPORTED,6,0,1,3,2,0
+wall,kgnn,krig_global,True,NOT SUPPORTED,6,5,0,0,1,0
+wall,kgnn,idw,False,SUPPORTED: A better,6,6,0,0,0,0
+wall,krig_global,idw,False,NOT SUPPORTED,6,3,0,0,3,0
+wall,kgnn_side,rk_side,True,NOT SUPPORTED,6,1,1,4,0,0
+wall,kgnn_side,krig_side,False,NOT SUPPORTED,6,0,1,5,0,0
+wall,krig_side,rk_side,False,NOT SUPPORTED,6,2,0,4,0,0
+wall,kgnn_side,kgnn,False,NOT SUPPORTED,6,5,0,0,1,0

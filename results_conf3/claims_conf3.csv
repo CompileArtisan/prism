@@ -1,0 +1,21 @@
+family,A,B,primary,status,cells,better,worse,equiv,open,missing
+real_wifi,kgnn_prior,kgnn,True,NOT SUPPORTED,6,0,1,0,5,0
+real_wifi,kgnn_priorft,kgnn,False,NOT SUPPORTED,6,0,1,0,5,0
+real_wifi,kgnn_prior,idw,False,NOT SUPPORTED,6,0,0,0,6,0
+real_wifi,kgnn_prior,krig_global,False,NOT SUPPORTED,6,2,0,0,4,0
+real_wifi,ens_geo,kgnn,False,NOT SUPPORTED,6,0,0,4,2,0
+real_wifi,kgnn_prior,gb_geo,False,NOT SUPPORTED,6,3,0,0,3,0
+real_wifi,kgnn,gb_geo,False,NOT SUPPORTED,6,4,0,0,2,0
+wall,kgnn_prior,kgnn,True,EQUIVALENT (+/-2%),6,0,0,6,0,0
+wall,kgnn_priorft,kgnn,False,EQUIVALENT (+/-2%),6,0,0,6,0,0
+wall,kgnn_prior,idw,False,SUPPORTED: A better,6,6,0,0,0,0
+wall,kgnn_prior,krig_global,False,NOT SUPPORTED,6,4,0,0,2,0
+wall,kgnn_prior_sk,rk_side,True,NOT SUPPORTED,6,0,4,2,0,0
+wall,kgnn_prior_sk,kgnn_prior_rid,False,NOT SUPPORTED,6,3,1,2,0,0
+wall,kgnn_prior_rid,kgnn_side,False,NOT SUPPORTED,6,0,2,4,0,0
+wall,kgnn_prior_sk,kgnn_side,False,NOT SUPPORTED,6,0,2,4,0,0
+wall,kgnn_priorft_sk,kgnn_prior_sk,False,NOT SUPPORTED,6,3,1,2,0,0
+wall,ens_sk,rk_side,False,EQUIVALENT (+/-2%),6,0,0,6,0,0
+wall,ens_side,rk_side,False,NOT SUPPORTED,6,2,0,4,0,0
+wall,kgnn_prior_sk,gb_side,False,NOT SUPPORTED,6,3,0,0,3,0
+wall,rk_side,gb_side,False,NOT SUPPORTED,6,3,0,0,3,0

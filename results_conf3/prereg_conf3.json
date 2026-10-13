@@ -1,0 +1,268 @@
+{
+ "created_utc": "2026-10-13T10:51:59.356084Z",
+ "sha256": "63ebe2012b6370c24be05aac30bd12a7cb1955e2ad85a8bd2d9a709de8b88ada",
+ "spec": {
+  "block_buffer": 0.0,
+  "claim_rule": "A contrast (A,B) is SUPPORTED for a claim-eligible family only if, in EVERY split and at EVERY density of that family, it is Holm-significant at parent level in the claimed direction AND the layout-level cluster-bootstrap 95% CI excludes 0 in the same direction (needs >= 5 layouts). EQUIVALENT only if the 95% CI of the relative RMSE difference lies inside +/- margin in every cell (needs >= 8 parents). Anything else is NOT SUPPORTED.",
+  "claims": [
+   "H6 (primary): kgnn_prior has lower RMSE than kgnn",
+   "H7 (primary): kgnn_prior_sk has lower RMSE than rk_side",
+   "Secondary: every contrast in contrasts_krig / contrasts_side2",
+   "Nothing else is tested confirmatorily; any other contrast is exploratory and labelled so."
+  ],
+  "contrasts_krig": [
+   [
+    "kgnn_prior",
+    "kgnn"
+   ],
+   [
+    "kgnn_priorft",
+    "kgnn"
+   ],
+   [
+    "kgnn_prior",
+    "idw"
+   ],
+   [
+    "kgnn_prior",
+    "krig_global"
+   ],
+   [
+    "ens_geo",
+    "kgnn"
+   ],
+   [
+    "kgnn_prior",
+    "gb_geo"
+   ],
+   [
+    "kgnn",
+    "gb_geo"
+   ]
+  ],
+  "contrasts_side2": [
+   [
+    "kgnn_prior_sk",
+    "rk_side"
+   ],
+   [
+    "kgnn_prior_sk",
+    "kgnn_prior_rid"
+   ],
+   [
+    "kgnn_prior_rid",
+    "kgnn_side"
+   ],
+   [
+    "kgnn_prior_sk",
+    "kgnn_side"
+   ],
+   [
+    "kgnn_priorft_sk",
+    "kgnn_prior_sk"
+   ],
+   [
+    "ens_sk",
+    "rk_side"
+   ],
+   [
+    "ens_side",
+    "rk_side"
+   ],
+   [
+    "kgnn_prior_sk",
+    "gb_side"
+   ],
+   [
+    "rk_side",
+    "gb_side"
+   ]
+  ],
+  "designed_after_seeing": [
+   "the whole idea (meta-learned kernel prior, propagation-aware kernel, ensembles, GB baseline) follows rounds 1-2",
+   "the primaries H6 and H7",
+   "the 2% equivalence margin and minimum-n rules are inherited from round 2"
+  ],
+  "earlier_prereg_sha256": {
+   "round1": "97162105f4e8359af3ccf827a9ee87dc7e578d52a82dae36021611be05e5cac5",
+   "round2": "e8a2305db2926a20dc623ea480014606f8f71072b5ba33efe720584fa6c3616b"
+  },
+  "equivalence_margin_pct": 2.0,
+  "families": {
+   "dm_path": {
+    "claim_eligible": false,
+    "densities": [
+     30,
+     100,
+     300
+    ],
+    "infer": [
+     "i1_2p5"
+    ],
+    "n_layouts": 3,
+    "n_parents": 27,
+    "n_test": 1000,
+    "n_units": 27,
+    "side": true
+   },
+   "real_wifi": {
+    "claim_eligible": true,
+    "densities": [
+     5,
+     10,
+     20
+    ],
+    "infer": null,
+    "n_layouts": 6,
+    "n_parents": 16,
+    "n_test": "per member",
+    "n_units": 113,
+    "pooled_from": [
+     "uji",
+     "sod"
+    ],
+    "side": false
+   },
+   "sod": {
+    "claim_eligible": false,
+    "densities": [
+     5,
+     10,
+     20,
+     60
+    ],
+    "infer": null,
+    "n_layouts": 3,
+    "n_parents": 5,
+    "n_test": 40,
+    "n_units": 47,
+    "side": false
+   },
+   "uji": {
+    "claim_eligible": false,
+    "densities": [
+     5,
+     10,
+     20
+    ],
+    "infer": null,
+    "n_layouts": 3,
+    "n_parents": 11,
+    "n_test": 20,
+    "n_units": 66,
+    "side": false
+   },
+   "wall": {
+    "claim_eligible": true,
+    "densities": [
+     20,
+     50,
+     100
+    ],
+    "infer": null,
+    "n_layouts": 16,
+    "n_parents": 16,
+    "n_test": 200,
+    "n_units": 96,
+    "side": true
+   }
+  },
+  "fresh": {
+   "dm_path": "NOT fresh units; descriptive only; no prior (one environment per scenario)",
+   "reps": "300..",
+   "sod": "APs not used in round 2, seed 3",
+   "test_salt": "conf3",
+   "uji": "APs not used in rounds 1-2, seed 3",
+   "wall": "new layouts (seed 3)"
+  },
+  "holm": "one family per (dataset, split, contrast list); cap = contrasts x densities x inference scenarios",
+  "methods": {
+   "geo": [
+    "trend",
+    "idw",
+    "krig_global",
+    "kgnn",
+    "gb_geo",
+    "ens_geo",
+    "kgnn_prior",
+    "kgnn_priorft"
+   ],
+   "side": [
+    "trend",
+    "idw",
+    "krig_global",
+    "kgnn",
+    "rk_side",
+    "krig_side",
+    "kgnn_side",
+    "gb_side",
+    "ens_side",
+    "kgnn_prior",
+    "kgnn_priorft",
+    "kgnn_prior_rid",
+    "kgnn_prior_sk",
+    "kgnn_priorft_sk",
+    "ens_sk"
+   ]
+  },
+  "min_layouts_for_claim": 5,
+  "min_parents_for_equivalence": 8,
+  "pooled": {
+   "densities": [
+    5,
+    10,
+    20
+   ],
+   "members": [
+    "uji",
+    "sod"
+   ],
+   "name": "real_wifi"
+  },
+  "primary": [
+   [
+    "kgnn_prior_sk",
+    "rk_side"
+   ],
+   [
+    "kgnn_prior",
+    "kgnn"
+   ]
+  ],
+  "prior": {
+   "batch": 4,
+   "episode_rep_ids": "500+ (disjoint from evaluation reps)",
+   "episode_reps": 2,
+   "finetune_steps": 30,
+   "group_size": {
+    "real_wifi": 1,
+    "wall": 4
+   },
+   "lr": 0.005,
+   "n_src": 40,
+   "pooled_real_prior": "UJI and SOD buildings are pooled: a held-out building is predicted by a prior trained on the other 5",
+   "steps": 1500
+  },
+  "reps": [
+   300,
+   301,
+   302,
+   303,
+   304
+  ],
+  "splits": [
+   "random",
+   "blocked"
+  ],
+  "test_salt": "conf3",
+  "title": "radio-map extension, round 3: meta-learned kriging-attention prior, side-aware kernel, GB baseline",
+  "trend_policy": "robust",
+  "tuning": "none: library defaults (Kmax=12, s2_init=0.3). The prior is trained on OTHER layouts only; no hyper-parameter is chosen on any evaluation unit.",
+  "wording_rule": {
+   "EQUIVALENT": "the paper must say A matches B within the margin",
+   "NOT_SUPPORTED": "the paper must say the advantage was not established; per-cell wins may be shown but not called confirmed",
+   "SUPPORTED_A_better": "the paper may state that A improves on B on this family, with the per-density effect sizes and the layout-level CI",
+   "SUPPORTED_A_worse": "the paper must report that A is worse"
+  }
+ }
+}

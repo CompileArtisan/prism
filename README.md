@@ -2,24 +2,45 @@
 
 A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and learned models (GCN, GAT, a kriging-initialised graph model called KGNN) that predict received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across independent parents (transmitters, building-floors or layouts, depending on the dataset).
 
-The work ran in three stages, and the older stages are never overwritten:
+The work ran in four stages, and the older stages are never overwritten:
 
 | Stage | Notebook | Data | Purpose |
 |---|---|---|---|
 | **Main sweep** (2026-10-11) | `radiomap_6g_sweep.ipynb` | DeepMIMO `i1_2p5`, `i2_28b` | Classical vs graph models, with sensitivity variants |
 | **Round 1** (2026-10-11) | `radiomap_ext_real_crosslayout.ipynb` | UJIIndoorLoc (real Wi-Fi), wall simulator, DeepMIMO | More layouts, robust trend, side information, tuning, transfer, both splits, pre-registration |
 | **Round 2** (2026-10-12) | `radiomap_ext_conf2.ipynb` | UJI (fresh APs), SODIndoorLoc (new real data), wall simulator (new layouts), DeepMIMO | Pre-specified replication of the two surviving questions on fresh data |
+| **Round 3** | `radiomap_ext_conf3_kriging_attention.ipynb` | UJI, SODIndoorLoc (60-label density added), wall simulator | Meta-learned prior (`kgnn_prior*`), side-aware kernel, ensembles, gradient-boosting baseline (`gb_geo`), cost |
 
 ## Summary of findings
 
-1. **The KGNN advantage is real but small, and it replicates.** KGNN beats IDW in nearly every cell of every dataset (+1.4% to +7%, 0.1–0.4 dB on real Wi-Fi, 0.003–0.008 dB on DeepMIMO). Against a fitted global kriging it wins in most cells, by 8% at 5 labels on real Wi-Fi but only 1–3% at 10–20 labels.
+1. **The KGNN advantage is real but small, and it replicates.** KGNN beats IDW in nearly every cell of every dataset and round (+1.3% to +7%, 0.1–0.4 dB on real Wi-Fi, 0.003–0.008 dB on DeepMIMO; Figure 1). In round 3 the sign holds in all 7 real-Wi-Fi random-split cells, but those gains are descriptive (no paired test was run). Against a fitted global kriging it wins in most cells, by 8% at 5 labels on real Wi-Fi but only 1–3% at 10–20 labels.
 2. **Only one pre-registered claim passed its own strict rule.** `kgnn` vs `idw` on the wall simulator (6 of 6 cells). The primary claim `kgnn` vs `krig_global` was **NOT SUPPORTED** on real Wi-Fi and on the simulator: 5 of 6 cells were significantly better, and one cell stayed open.
 3. **GCN and GAT never beat IDW.** In 3 families, 2 splits and all densities, the plain label-aware GCN/GAT lose to IDW (−2% to −14%), and tuning does not change that.
 4. **Side information is what helps, not the learned interpolator.** On the wall simulator a plain ridge regression on wall-count and LOS covariates plus IDW (`rk_side`) beats IDW by 22–23%. Giving the same covariates to KGNN (`kgnn_side`) lands within about ±1% of it. Giving them to a GNN is far worse than `rk_side` (−19% to −34%).
 5. **Pre-training on other layouts does not rescue the GNNs.** On real data, GNNs pre-trained on other buildings are not better than IDW (significantly worse at 20 labels). On the simulator they beat IDW but still lose to `rk_side`.
 6. **A bad shared trend, not the interpolator, caused the biggest errors at very few labels on real data.** A robust trend selection fixed it (trend-only RMSE at 5 labels fell from 60.8 dB to 11.7 dB).
 
+7. **A meta-learned prior helps only at the very fewest labels on real data.** `kgnn_prior` is the best method at 5 labels on UJI (+4.9% over IDW), but it falls behind from-scratch KGNN as labels grow (−12% on SOD at 20 and 60 labels). It is zero-shot and about 100x cheaper than KGNN (Figure 7).
+8. **Gradient boosting on coordinates is a weak baseline at low density and competitive only on dense data.** `gb_geo` is 18–33% worse than IDW on UJI random and 30% worse on SOD at 5 labels, but 4.5% better than IDW at 60 labels on SOD.
+
 Absolute differences are small compared with the noise of the targets, so always read percentages next to dB values. See [Limitations](#limitations).
+
+![KGNN vs IDW across datasets and rounds](figures/fig1_kgnn_vs_idw_replication.png)
+
+*Figure 1. KGNN vs IDW, random split, every dataset and round. Round-3 rows (†) are computed from mean-RMSE tables, not from a paired test.*
+
+### What can and cannot be claimed
+
+| Claim | Status |
+|---|---|
+| KGNN gives a small, consistent RMSE gain over IDW (about 1–7%) | Replicated across 4 datasets and 3 rounds; Holm-significant in rounds 1–2 at most cells |
+| KGNN beats fitted global kriging at 5–10 labels on real Wi-Fi | Consistent in 6 of 6 buildings (round 2); the frozen claim rule is **not met** (one cell open) |
+| GCN/GAT beat IDW | **No**, in any family, split or density |
+| Side information via a GNN beats ridge + IDW (`rk_side`) | **No** (practically equivalent at best) |
+| A meta-learned prior helps | Only at 5 labels on real Wi-Fi and on the wall simulator; hurts at higher density on real data |
+| Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
+
+![Real Wi-Fi RMSE versus labels](figures/fig2_real_wifi_rmse_vs_labels.png)
 
 ## Files
 
@@ -34,6 +55,8 @@ Absolute differences are small compared with the noise of the targets, so always
 | `rmbench_ext3.py` | Layer 3: SODIndoorLoc, `krig_side` / `kgnn_side`, building-level cluster bootstrap, equivalence margin, programmatic claim evaluation |
 | `radiomap_ext_real_crosslayout.ipynb` | Round 1 (confirmatory design, run 2026-10-11) |
 | `radiomap_ext_conf2.ipynb` | Round 2 (pre-specified replication, run 2026-10-12) |
+| `radiomap_ext_conf3_kriging_attention.ipynb` | Round 3 (meta-learned prior, side-aware kernel, ensembles, gradient boosting) |
+| `readme_figures.py` | Regenerates every figure in this README into `figures/` from numbers transcribed from the saved notebook outputs (nothing is re-estimated) |
 
 The layers import each other (`ext3` imports `ext2`, which imports `ext`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
 
@@ -56,6 +79,9 @@ All methods predict the **same residual** after a shared trend fitted on the tra
 | `*_side` | The same model with extra covariates (wall count along the transmitter-receiver segment, LOS flag) |
 | `rk_side` | Regression-kriging comparator: ridge on **the same covariates the GNN sees**, then IDW of the remaining residual. Exists so that a side-information GNN is not compared with a method that cannot use side information |
 | `krig_side`, `kgnn_side` | `rk_side` with the leftover residual interpolated by global kriging / KGNN instead of IDW. Each contrast differs from the next in exactly one factor |
+| `kgnn_prior`, `kgnn_prior_sk`, `kgnn_priorft` | KGNN whose covariance parameters come from a **meta-learned prior** fitted on other layouts and applied zero-shot. `_sk` uses a side-aware kernel; `_priorft` fine-tunes the prior on the target labels |
+| `ens_geo`, `ens_side`, `ens_sk` | Ensembles. `ens_side` = `kgnn_side` + `rk_side`; `ens_sk` = `kgnn_prior_sk` + `rk_side`. `ens_geo` combines the label-aware geometric models (composition: see the round-3 notebook) |
+| `gb_geo` | Gradient boosting on coordinates and geometric features (no side information) |
 | `xfer_*`, `xferft_*`, `within_*` | GNN pre-trained on **other** layouts and applied zero-shot / with 30 fine-tune steps, versus pre-trained on the same layout (but different floors) as control |
 
 ### Mechanisms added in the extension rounds
@@ -147,6 +173,10 @@ The KGNN gain over `krig_global` is 0.0010–0.0018 dB, and over `idw` 0.0033–
 | | `gat_del_tuned` vs `idw` | −10.2* / −7.4* / −6.6* | −5.4 / +5.2 / −0.6 |
 | | `gcn_knn_tuned` vs `idw` | −13.8* / −10.3* / −9.8* | −7.8 / −0.0 / −3.2 |
 
+![GNNs vs IDW](figures/fig4_gnn_vs_idw.png)
+
+*Figure 4. No GNN variant is significantly better than IDW in any cell.*
+
 - **Tuning barely matters.** Tuned and default KGNN do not differ significantly anywhere (|difference| ≤ 0.3%). Tuned GCN/GAT gain at most about 2%, never significantly. The tuned GNNs still lose to IDW, so the earlier "GNNs may be under-tuned" worry does not explain their deficit.
 - **Topology and architecture are second-order.** GAT vs GCN and Delaunay vs kNN differ by 0–2%, mostly not significant.
 - **Side information (wall simulator, random split).** `rk_side` beats `idw` by 22–23% (RMSE 4.87 vs 6.27 dB at 20 labels). Side information also helps GNNs (`gat_del_side` vs `gat_del` +13–15%, `gcn_knn_side` vs `gcn_knn` +5–7%) and `gat_del_side` beats `idw` by 4–7%, but both side GNNs lose to `rk_side` by 19–34%, significantly. On DeepMIMO, `rk_side` is within ±1.5% of IDW at 100 and 300 labels, and side GNNs again lose to it by 10–18%.
@@ -190,7 +220,50 @@ Absolute size on real data: UJI RMSE at 5 labels is 8.88 dB (`kgnn`), 9.25 (`idw
 
 "NOT SUPPORTED" with 5 of 6 cells better means the direction is consistent but one cell (the blocked, highest-density cell) misses Holm significance; it is not evidence against the effect. The honest reading of H5 is that `kgnn_side`, `krig_side` and `rk_side` are practically equivalent: once the covariates are regressed out, the choice of interpolator for the leftover residual does not matter.
 
+![Per-building KGNN vs kriging](figures/fig3_per_building_kgnn_vs_kriging.png)
+
+*Figure 3. Per-building gain over global kriging, round 2, random split.*
+
 **Do round-1 effect sizes replicate?** (exploratory) `kgnn` vs `idw` is stable (UJI +4.5 / +2.2 / +1.5 → +4.0 / +2.1 / +1.5 random; wall +5.8 / +3.3 / +2.7 → +4.4 / +3.4 / +2.8; DeepMIMO within ±1.5 points). `krig_global` vs `idw` is **not** stable (wall blocked +2.8 / +3.1 / +3.1 → −0.7 / −1.0 / −0.0, UJI at 20 labels flips sign), so kriging's edge over IDW should not be relied on.
+
+### Round 3: meta-learned prior, side-aware kernel, gradient boosting (real Wi-Fi and wall simulator)
+
+Round 3 was designed after rounds 1 and 2. Under your frozen claim rule all primary contrasts (H6 and H7) came out **NOT SUPPORTED**, and they must be reported as such. <!-- TODO: add the H6/H7 contrast definitions, the cells better/worse/equivalent/open counts, the unit counts per family, seed, test salt and prereg hash from the round-3 notebook; they were not available when this README was updated. -->
+
+**Mean RMSE (dB), parent-level, real Wi-Fi.** Bold = lowest in the column.
+
+| Family | Labels | `trend` | `idw` | `krig_global` | `kgnn` | `kgnn_prior` | `gb_geo` |
+|---|---|---|---|---|---|---|---|
+| UJI, random | 5 | 10.478 | 9.622 | 9.730 | 9.310 | **9.150** | 12.753 |
+| | 10 | 8.265 | 7.610 | 7.789 | **7.454** | 7.511 | 9.009 |
+| | 20 | 7.137 | 6.718 | 6.761 | **6.710** | 6.733 | 8.016 |
+| UJI, blocked | 5 | 10.835 | 10.428 | 10.479 | 10.124 | **9.957** | 12.362 |
+| | 10 | 9.955 | 9.449 | 9.585 | **9.330** | 9.331 | 9.894 |
+| | 20 | 9.238 | 8.694 | 8.805 | **8.388** | 8.701 | 8.891 |
+| SOD, random | 5 | 11.880 | 9.570 | 10.402 | **9.300** | 9.489 | 12.468 |
+| | 10 | 8.686 | 7.326 | 7.436 | **6.989** | 7.543 | 7.705 |
+| | 20 | 7.367 | 6.061 | 6.051 | **5.810** | 6.483 | 6.177 |
+| | 60 | 6.643 | 4.986 | 4.959 | 4.825 | 5.423 | **4.762** |
+
+Relative gain (%) computed from these means (descriptive, **no paired test**):
+
+| Family | Labels | `kgnn` vs `idw` | `kgnn` vs `krig_global` | `kgnn_prior` vs `idw` | `kgnn_prior` vs `kgnn` | `gb_geo` vs `idw` |
+|---|---|---|---|---|---|---|
+| UJI, random | 5 / 10 / 20 | +3.2 / +2.0 / +0.1 | +4.3 / +4.3 / +0.8 | +4.9 / +1.3 / −0.2 | +1.7 / −0.8 / −0.3 | −32.5 / −18.4 / −19.3 |
+| UJI, blocked | 5 / 10 / 20 | +2.9 / +1.3 / +3.5 | +3.4 / +2.7 / +4.7 | +4.5 / +1.2 / −0.1 | +1.6 / −0.0 / −3.7 | −18.5 / −4.7 / −2.3 |
+| SOD, random | 5 / 10 / 20 / 60 | +2.8 / +4.6 / +4.1 / +3.2 | +10.6 / +6.0 / +4.0 / +2.7 | +0.8 / −3.0 / −7.0 / −8.8 | −2.0 / −7.9 / −11.6 / −12.4 | −30.3 / −5.2 / −1.9 / +4.5 |
+
+- **KGNN holds up on fresh real data.** It is ahead of IDW and of global kriging in every real-Wi-Fi cell above, but the UJI random gain at 20 labels is 0.1%, i.e. nothing.
+- **The prior is a low-label tool.** It is the lowest-RMSE method at 5 labels on UJI (random and blocked), then loses to from-scratch KGNN. On SOD it is worse than IDW from 10 labels on. Per building (Figure 5) it is worse than scratch KGNN in most cells, with SOD b1 and b3 the worst (−11% to −16% at 20 labels).
+- **Gradient boosting** is far worse at low density. It only wins at 60 labels on SOD (+4.5% over IDW, +1.3% over KGNN). Its tuning status is not documented here; see [Limitations](#limitations).
+- **Wall simulator.** Nothing reliably beats `rk_side` (Figure 6). `ens_side` is within +1.5% and `kgnn_prior_sk` is up to 2.5% worse; all differences sit inside or at the edge of the ±2% equivalence margin.
+- **Cost.** `kgnn_prior` costs 0.006 s per prediction job against 0.697 s for `kgnn` (Figure 7), which is its practical argument.
+
+![Prior vs scratch KGNN per building](figures/fig5_prior_vs_scratch_per_building.png)
+
+![Wall simulator side information](figures/fig6_wall_side_information.png)
+
+![Cost per prediction](figures/fig7_cost.png)
 
 ## Limitations
 
@@ -203,12 +276,15 @@ Absolute size on real data: UJI RMSE at 5 labels is 8.88 dB (`kgnn`), 9.25 (`idw
 - **Tuning is parent-disjoint, not layout-disjoint,** for UJI and DeepMIMO (sibling floors / transmitters of the same building can sit in the tuning fold). It is layout-disjoint for `wall`. The tuning budget is small (8 trials per neural method), though tuning made no difference.
 - **Blocked split uses buffer 0:** labeled points may sit right next to the test block.
 - **`gcn_krig` at 30 labels** uses only 6 labeled points for early stopping; its loss to IDW there may reflect noisy selection (not tested).
-- **Not tested:** gradient-boosted or random-forest regression on coordinates plus covariates, kriging with the true AP position known (SOD ships AP coordinates), and any deep radio-map baseline. A reviewer will likely ask for the first. The `i3_60` slug and the narrowband channel shape are unverified.
+- **Not tested:** kriging with the true AP position known (SOD ships AP coordinates) and any deep radio-map baseline (a RadioUNet-style model). Gradient boosting is covered only by `gb_geo` in round 3 (geometric features, real Wi-Fi). State its tuning budget next to any claim about it, because a 18–33% loss at low density will look under-tuned to a reviewer. The `i3_60` slug and the narrowband channel shape are unverified.
+- **Round-3 hypotheses were also chosen after earlier output,** and all its primaries are NOT SUPPORTED. Round-3 gains over IDW and kriging in Figure 1 and the tables above are descriptive. Do not relabel the primaries by restricting to densities or splits that look best.
+- **Six buildings** remain the weakest point for real-data inference; adding buildings (Tampere, UTSIndoorLoc, MallIndoorLoc) is the most valuable next step.
 - **Exploratory outputs.** `run_ext.py` runs and the trend-repair table are exploratory. Only contrasts frozen in a pre-registration file are labelled confirmatory.
 
 ## Reproducibility
 
 - Seeds are fixed in the config; per-task seeds derive from a stable hash of the task id. Round 1 uses `seed=1` (AP sample), test salt `conf1`, replicate ids 100+. Round 2 uses `seed=2`, test salt `conf2`, replicate ids 200+. The exploratory runs used `seed=0`.
 - Pre-registration files (`results_ext2/prereg.json`, written 2026-10-11, sha256 `97162105…`; `results_conf2/prereg_conf2.json`, written 2026-10-12, sha256 `e8a2305d…`, which also embeds the round-1 hash) should be committed to git before the confirmatory cells are run.
+- Figures: `python readme_figures.py` writes `figures/*.png`. All numbers in it are transcribed from the saved notebook outputs, and the round-3 relative gains are computed from the parent-level mean-RMSE tables, not from paired tests.
 - Results come from the saved notebook outputs and the `confirmatory_master*.csv` / `claims_conf2.csv` files they write.
 - Tuned hyper-parameters in the main sweep: `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features. `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features. `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3. Round 2 defaults: Kmax 12, `s2_init` 0.3, 150 steps.

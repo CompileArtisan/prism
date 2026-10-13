@@ -2,7 +2,7 @@
 
 A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and learned models (GCN, GAT, a kriging-initialised graph model called KGNN) that predict received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across independent parents (transmitters, building-floors or layouts, depending on the dataset).
 
-The work ran in four stages, and the older stages are never overwritten:
+The work ran in five stages, and the older stages are never overwritten:
 
 | Stage | Notebook | Data | Purpose |
 |---|---|---|---|
@@ -10,6 +10,7 @@ The work ran in four stages, and the older stages are never overwritten:
 | **Round 1** (2026-10-11) | `radiomap_ext_real_crosslayout.ipynb` | UJIIndoorLoc (real Wi-Fi), wall simulator, DeepMIMO | More layouts, robust trend, side information, tuning, transfer, both splits, pre-registration |
 | **Round 2** (2026-10-12) | `radiomap_ext_conf2.ipynb` | UJI (fresh APs), SODIndoorLoc (new real data), wall simulator (new layouts), DeepMIMO | Pre-specified replication of the two surviving questions on fresh data |
 | **Round 3** | `radiomap_ext_conf3_kriging_attention.ipynb` | UJI, SODIndoorLoc (60-label density added), wall simulator | Meta-learned prior (`kgnn_prior*`), side-aware kernel, ensembles, gradient-boosting baseline (`gb_geo`), cost |
+| **Round 4** | `radiomap_ext_conf4_ablation.ipynb` | Round-3 real Wi-Fi units (UJI, SOD), fresh test salt `abl4` | Ablation: where does KGNN's edge come from? Learned parameters vs the fixed local-kriging structure |
 
 ## Summary of findings
 
@@ -22,6 +23,8 @@ The work ran in four stages, and the older stages are never overwritten:
 
 7. **A meta-learned prior helps only at the very fewest labels on real data.** `kgnn_prior` is the best method at 5 labels on UJI (+4.9% over IDW), but it falls behind from-scratch KGNN as labels grow (−12% on SOD at 20 and 60 labels). It is zero-shot and about 100x cheaper than KGNN (Figure 7).
 8. **Gradient boosting on coordinates is a weak baseline at low density and competitive only on dense data.** `gb_geo` is 18–33% worse than IDW on UJI random and 30% worse on SOD at 5 labels, but 4.5% better than IDW at 60 labels on SOD.
+
+9. **Where the edge comes from: the local-kriging structure, not training (round 4).** A local kriging of the K=12 nearest labels with a fixed default covariance (exponential in space, polar term, nugget; **no training at all**) already carries the gain. On UJI (random split) it beats IDW by +2.7% / +2.8% / −0.2% and global kriging by +5.8% / +2.2% / −1.1% at 5 / 10 / 20 labels (Holm-significant at 5 labels vs global kriging and at 10 labels vs IDW). Learning the six covariance parameters on top adds nothing measurable (pooled primary |gain| ≤ 1.1%, ≤ 0.1 dB; verdict NOT ESTABLISHED). The practical consequence is positive: a **training-free local kriging with a nugget** is the cheap, robust method to use at 5–10 labels, and it needs no GNN.
 
 Absolute differences are small compared with the noise of the targets, so always read percentages next to dB values. See [Limitations](#limitations).
 
@@ -38,6 +41,9 @@ Absolute differences are small compared with the noise of the targets, so always
 | GCN/GAT beat IDW | **No**, in any family, split or density |
 | Side information via a GNN beats ridge + IDW (`rk_side`) | **No** (practically equivalent at best) |
 | A meta-learned prior helps | Only at 5 labels on real Wi-Fi and on the wall simulator; hurts at higher density on real data |
+| Learning the KGNN kernel beats the same kernel untrained (round 4 primary) | **No / not established.** Pooled real Wi-Fi, 6 cells: −1.1% to +1.0%, none Holm-significant (frozen rule: NOT ESTABLISHED) |
+| Training-free local kriging (fixed default covariance + nugget) beats IDW and global kriging at 5–10 labels on real Wi-Fi | **Supported descriptively and in part by Holm-significant secondary contrasts** (UJI random: 2 of 6 cells significant, rest same sign or inconclusive). Not a pre-registered primary |
+| The nugget matters | Yes: freezing it at ~0 costs +4.1% RMSE at 20 labels (UJI random, Holm-significant); learning it vs the 0.2 default adds nothing |
 | Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
 
 ![Real Wi-Fi RMSE versus labels](figures/fig2_real_wifi_rmse_vs_labels.png)
@@ -56,6 +62,9 @@ Absolute differences are small compared with the noise of the targets, so always
 | `radiomap_ext_real_crosslayout.ipynb` | Round 1 (confirmatory design, run 2026-10-11) |
 | `radiomap_ext_conf2.ipynb` | Round 2 (pre-specified replication, run 2026-10-12) |
 | `radiomap_ext_conf3_kriging_attention.ipynb` | Round 3 (meta-learned prior, side-aware kernel, ensembles, gradient boosting) |
+| `radiomap_ext_conf4_ablation.ipynb` | Round 4 (KGNN ablation). Section 2 writes `rmbench_ablate.py` (`%%writefile`); the notebook also contains the former `run_ablation.py` as cells |
+| `rmbench_ablate.py` | Ablation layer: switchable KGNN fit (`polar`, `freeze`, `tau_zero`, `step0`) and the `kgnn_abl` dispatcher. Adds only; `rmbench_core/nn/ext/ext2/ext3` are untouched |
+| `run_ablation.py` | Same ablation driver as the notebook, as a command line (`smoke`, `run`, `report`) |
 | `readme_figures.py` | Regenerates every figure in this README into `figures/` from numbers transcribed from the saved notebook outputs (nothing is re-estimated) |
 
 The layers import each other (`ext3` imports `ext2`, which imports `ext`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
@@ -265,6 +274,39 @@ Relative gain (%) computed from these means (descriptive, **no paired test**):
 
 ![Cost per prediction](figures/fig7_cost.png)
 
+### Round 4: how much of KGNN is learning? (real Wi-Fi ablation, run 2026-10-13)
+
+**Design.** Seven arms share Kmax = 12, `s2_init` = 0.3 and common random numbers (the seed comes from the labelled indices, not the arm name, so paired differences carry no seed noise): `abl_full` (stock KGNN), `abl_untr_polar` (0 steps, polar term on), `abl_untr_nopolar` (0 steps, polar off; identical to `krig_untrained`), `abl_nopolar`, `abl_nonug_fixed` (nugget frozen at 0.2), `abl_nonug_zero` (nugget ~0) and `abl_nostep0` (untrained checkpoint not a validation candidate). Data: the round-3 real Wi-Fi units (UJI 66 units / 11 building-floors / 3 buildings; SOD 47 units / 5 building-floors / 3 buildings; pooled 16 parents, 6 layouts), densities 5/10/20 (SOD also 60, not pooled), random and blocked splits, test salt `abl4`, replicate ids 700+, 5 replicates, defaults only, no failed jobs. The plan is frozen in `results_ablation/prereg_ablation.json`. **Primary:** `abl_full` vs `abl_untr_polar`, pooled. Holm per (family, split) call over 36 tests.
+
+**Checks.** `krig_untrained` and `abl_untr_nopolar` agree exactly (max |ΔRMSE| = 0.00 dB in all 6 family-split tables), and `kgnn` vs `abl_full` differ by at most 0.005 dB on average (seed only).
+
+**Primary (pooled real Wi-Fi), relative RMSE gain of learned over untrained polar kriging:**
+
+| Split | Labels | gain | ΔRMSE (dB) | Holm p | layout CI > 0 |
+|---|---|---|---|---|---|
+| random | 5 / 10 / 20 | −0.9% / −0.2% / +1.0% | −0.08 / −0.01 / +0.07 | 1.00 / 1.00 / 0.19 | no / no / yes |
+| blocked | 5 / 10 / 20 | −0.4% / −1.1% / −0.2% | −0.05 / −0.11 / −0.02 | 1.00 / 0.81 / 1.00 | no / no / no |
+
+Frozen rule outcome: **NOT ESTABLISHED**. Five of six cells have a parent-level CI inside ±2%; blocked at 10 labels does not, so EQUIVALENT is not declared either. No cell is significantly worse.
+
+**What does carry the gain (UJI, random split, relative RMSE gain of A over B, `*` = Holm-significant; from `figures/abl_uji_random_*`; the pooled and SOD tables are in `figures/` and have not been transcribed here):**
+
+| Contrast | 5 labels | 10 labels | 20 labels |
+|---|---|---|---|
+| untrained polar kriging vs `krig_global` | +5.8%* | +2.2% | −1.1% |
+| untrained polar kriging vs `idw` | +2.7% | +2.8%* | −0.2% |
+| polar term, no learning (`abl_untr_polar` vs `abl_untr_nopolar`) | +0.1% | −0.1% | −0.2% |
+| nugget at all (`abl_full` vs `abl_nonug_zero`) | −0.4% | +2.1% | +4.1%* |
+| learned nugget vs fixed 0.2 (`abl_full` vs `abl_nonug_fixed`) | −1.1% | −0.4% | +0.4% |
+| learned polar term (`abl_full` vs `abl_nopolar`) | +1.5%* | +0.2% | −0.1% |
+| step-0 candidate (`abl_full` vs `abl_nostep0`) | 0.0% | 0.0% | −0.1% |
+
+RMSE (dB, UJI random): IDW 9.070 / 7.606 / 6.825, untrained polar kriging 8.826 / 7.389 / 6.837, `abl_full` 8.864 / 7.385 / 6.750.
+
+**Reading.** The advantage over IDW and global kriging at 5–10 labels is already there with **no training**. The covariance structure (local neighbourhood, nugget) is what matters; the polar term is neutral untrained and gives a small gain only when learned at 5 labels. The honest name for the method is therefore *local kriging with a fixed, sensible covariance and a nugget*. KGNN's learned parameters are optional.
+
+**Diagnostic caveat.** In `abl_fig3_share_left_step0.png` about 70% of `abl_full` fits at 20 and 60 labels left step 0 (the validation-selected checkpoint was a trained one), so learning did move the parameters; the held-out gain was still about zero. Bars at 5 and 10 labels are empty, which is probably an artifact of an empty validation split at so few labels (`best_ep` stays 0); do not cite that figure for 5 and 10 labels until `_split_val` is checked.
+
 ## Limitations
 
 - **Hypotheses were chosen after seeing round 1.** Round 2 has fresh data, not fresh hypotheses, and the plan says so. The trend policy, outage gating and dataset choices were also designed after exploratory output (listed in `prereg.json`).
@@ -279,6 +321,7 @@ Relative gain (%) computed from these means (descriptive, **no paired test**):
 - **Not tested:** kriging with the true AP position known (SOD ships AP coordinates) and any deep radio-map baseline (a RadioUNet-style model). Gradient boosting is covered only by `gb_geo` in round 3 (geometric features, real Wi-Fi). State its tuning budget next to any claim about it, because a 18–33% loss at low density will look under-tuned to a reviewer. The `i3_60` slug and the narrowband channel shape are unverified.
 - **Round-3 hypotheses were also chosen after earlier output,** and all its primaries are NOT SUPPORTED. Round-3 gains over IDW and kriging in Figure 1 and the tables above are descriptive. Do not relabel the primaries by restricting to densities or splits that look best.
 - **Six buildings** remain the weakest point for real-data inference; adding buildings (Tampere, UTSIndoorLoc, MallIndoorLoc) is the most valuable next step.
+- **Round-4 limits.** The data are the round-3 units (fresh test salt and replicate ids, not fresh buildings). The training-free-kriging claim comes from secondary contrasts; only the learning-vs-untrained contrast was the primary, and it was not established. Do not describe round 4 as showing that learning helps, or relabel the primary using the cells that look best (random split at 20 labels, +1.0%, Holm p = 0.19).
 - **Exploratory outputs.** `run_ext.py` runs and the trend-repair table are exploratory. Only contrasts frozen in a pre-registration file are labelled confirmatory.
 
 ## Reproducibility
@@ -286,5 +329,6 @@ Relative gain (%) computed from these means (descriptive, **no paired test**):
 - Seeds are fixed in the config; per-task seeds derive from a stable hash of the task id. Round 1 uses `seed=1` (AP sample), test salt `conf1`, replicate ids 100+. Round 2 uses `seed=2`, test salt `conf2`, replicate ids 200+. The exploratory runs used `seed=0`.
 - Pre-registration files (`results_ext2/prereg.json`, written 2026-10-11, sha256 `97162105…`; `results_conf2/prereg_conf2.json`, written 2026-10-12, sha256 `e8a2305d…`, which also embeds the round-1 hash) should be committed to git before the confirmatory cells are run.
 - Figures: `python readme_figures.py` writes `figures/*.png`. All numbers in it are transcribed from the saved notebook outputs, and the round-3 relative gains are computed from the parent-level mean-RMSE tables, not from paired tests.
+- Round 4 uses test salt `abl4`, replicate ids 700+, plan in `results_ablation/prereg_ablation.json`; smoke runs write to `ablation_smoke/` and never to `figures/`.
 - Results come from the saved notebook outputs and the `confirmatory_master*.csv` / `claims_conf2.csv` files they write.
 - Tuned hyper-parameters in the main sweep: `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features. `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features. `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3. Round 2 defaults: Kmax 12, `s2_init` 0.3, 150 steps.

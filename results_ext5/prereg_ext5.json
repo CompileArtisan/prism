@@ -1,0 +1,143 @@
+{
+ "created_utc": "2026-10-14T16:16:26.017513Z",
+ "sha256": "df2218853e8e01ae69bfae3eecb94441d8b73a801304dbdb5cd7543c0994aac9",
+ "spec": {
+  "amendments_after_smoke": [
+   "per-unit cache lookup in Part E",
+   "rk_gcn_s0 compared with rk_side",
+   "Part D pilot gate (prior must differ from trend, across K and architecture)",
+   "leak check also for xfer*/np_prior*",
+   "failed-job threshold 1%",
+   "negative-claim exclusion criterion added",
+   "i1_2p5 sensitivity analysis"
+  ],
+  "claim_rule": "'GNNs help' is claimed only if, at some (K, density) in the scale experiment, a learned model beats EVERY classical comparator (idw / rk_side, krig_global, gp_ml, kgnn) with a layout-cluster bootstrap CI lower bound above the equivalence margin. Otherwise the paper says: no tested regime shows a practically significant GNN gain.",
+  "designed_after_seeing": "rounds 1-4 (all of it: the regime covariates, rk_gcn, the scale axis, the margin carried over from round 2)",
+  "margin_pct": 2.0,
+  "mode": "full",
+  "negative_claim_rule": "'No practically significant GNN gain' is claimed only if, for EVERY (learned model, density) cell, at least one classical comparator is not beaten by more than the margin, i.e. min over comparators of the CI upper bound < margin (column `excluded`). Cells failing both rules are reported as unresolved.",
+  "positive_claim_confirmation": "a candidate positive cell must be re-evaluated on fresh evaluation layouts (new seed) before it is written up (about 160 learned-model x density cells are inspected)",
+  "regime_contrasts": [
+   [
+    "kgnn",
+    "idw"
+   ],
+   [
+    "krig_global",
+    "idw"
+   ],
+   [
+    "gcn_knn",
+    "idw"
+   ],
+   [
+    "gat_del",
+    "idw"
+   ],
+   [
+    "gcn_knn_tuned",
+    "idw"
+   ],
+   [
+    "gat_del_tuned",
+    "idw"
+   ],
+   [
+    "kgnn_prior",
+    "idw"
+   ],
+   [
+    "gp_ml",
+    "idw"
+   ],
+   [
+    "rbf_spline",
+    "idw"
+   ],
+   [
+    "coord_mlp",
+    "idw"
+   ],
+   [
+    "np_prior",
+    "idw"
+   ],
+   [
+    "gcn_knn_side",
+    "rk_side"
+   ],
+   [
+    "gat_del_side",
+    "rk_side"
+   ],
+   [
+    "kgnn_side",
+    "rk_side"
+   ],
+   [
+    "rk_gcn",
+    "rk_side"
+   ]
+  ],
+  "regime_covariates": [
+   "noise_frac",
+   "log_lpr",
+   "los_frac",
+   "side_r2",
+   "is_blocked"
+  ],
+  "scale": {
+   "K_source_layouts": [
+    4,
+    16,
+    64
+   ],
+   "comparators": [
+    "idw",
+    "rk_side",
+    "krig_global",
+    "gp_ml",
+    "kgnn"
+   ],
+   "densities": [
+    100,
+    300,
+    1000,
+    2000
+   ],
+   "eval_layouts": 16,
+   "methods": [
+    "xfer*_gat_del",
+    "xfer*_gcn_knn",
+    "xfer*_gat_del_side",
+    "xfer*_gcn_knn_side",
+    "xferft*",
+    "np_prior*"
+   ]
+  },
+  "side_contrasts": [
+   [
+    "gat_del_side",
+    "rk_side"
+   ],
+   [
+    "gcn_knn_side",
+    "rk_side"
+   ],
+   [
+    "rk_gcn",
+    "rk_side"
+   ],
+   [
+    "rk_gcn_s0",
+    "rk_side"
+   ],
+   [
+    "rk_gcn",
+    "rk_gcn_s0"
+   ]
+  ],
+  "title": "round 5: regime map, strawman defence, training-scale axis",
+  "unit_of_inference": "layout (wall simulator) / building-floor (real Wi-Fi); buildings reported descriptively"
+ }
+}

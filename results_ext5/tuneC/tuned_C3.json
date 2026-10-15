@@ -1,0 +1,74 @@
+{
+ "0": {
+  "gat_del_side": {
+   "hp": {
+    "arch": "gat",
+    "graph": "delaunay",
+    "fset": "geo_side",
+    "hidden": 32,
+    "layers": 2,
+    "lr": 0.009486832980505138,
+    "dropout": 0.1,
+    "wd": 0.00031622776601683794,
+    "steps": 150,
+    "heads": 4
+   },
+   "trial": 0,
+   "score": 5.537267542363467,
+   "default_score": 5.537267542363467
+  },
+  "gcn_knn_side": {
+   "hp": {
+    "arch": "gcn",
+    "graph": "knn",
+    "fset": "geo_side",
+    "hidden": 32,
+    "layers": 2,
+    "lr": 0.004622360993720344,
+    "dropout": 0.1,
+    "wd": 1.2499058458734134e-05,
+    "k": 6,
+    "steps": 150
+   },
+   "trial": 5,
+   "score": 5.986189858793001,
+   "default_score": 6.136034667197851
+  }
+ },
+ "1": {
+  "gat_del_side": {
+   "hp": {
+    "arch": "gat",
+    "graph": "delaunay",
+    "fset": "geo_side",
+    "hidden": 32,
+    "layers": 2,
+    "lr": 0.009486832980505138,
+    "dropout": 0.1,
+    "wd": 0.00031622776601683794,
+    "steps": 150,
+    "heads": 4
+   },
+   "trial": 0,
+   "score": 5.665130183749714,
+   "default_score": 5.665130183749714
+  },
+  "gcn_knn_side": {
+   "hp": {
+    "arch": "gcn",
+    "graph": "knn",
+    "fset": "geo_side",
+    "hidden": 32,
+    "layers": 2,
+    "lr": 0.004622360993720344,
+    "dropout": 0.1,
+    "wd": 1.2499058458734134e-05,
+    "k": 6,
+    "steps": 150
+   },
+   "trial": 5,
+   "score": 5.969597954629231,
+   "default_score": 6.150790447436348
+  }
+ }
+}

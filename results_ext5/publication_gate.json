@@ -1,0 +1,63 @@
+{
+ "mode": "full",
+ "checks": [
+  {
+   "check": "run is full size (MODE == 'full')",
+   "passed": true,
+   "detail": "MODE=full"
+  },
+  {
+   "check": "frozen plan written before Parts C-E",
+   "passed": true,
+   "detail": "results_ext5/prereg_ext5.json (commit it to git)"
+  },
+  {
+   "check": "leak checks ran for B and D",
+   "passed": true,
+   "detail": "['B', 'D']"
+  },
+  {
+   "check": "leak check B: identical predictions under corrupted test labels",
+   "passed": true,
+   "detail": "[]"
+  },
+  {
+   "check": "leak check D: identical predictions under corrupted test labels",
+   "passed": true,
+   "detail": "[]"
+  },
+  {
+   "check": "every results file has <= 1% failed jobs",
+   "passed": true,
+   "detail": "8 files checked; bad: []"
+  },
+  {
+   "check": "Part D priors applied and distinct across K / architecture",
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "check": "Part D has >= 12 evaluation layouts in every cell",
+   "passed": true,
+   "detail": "min clusters = 16"
+  },
+  {
+   "check": "Part C has >= 12 layouts in every cell",
+   "passed": true,
+   "detail": "min clusters = 16"
+  },
+  {
+   "check": "Part E re-evaluated >= 95% of the earlier units",
+   "passed": true,
+   "detail": "{'uji': 1.0, 'sod': 1.0}"
+  },
+  {
+   "check": "C1: rk_gcn is not clearly worse than rk_side (else debug rk_gcn first)",
+   "passed": false,
+   "detail": "[[10.0, -12.33, -15.31, -9.37], [20.0, -6.29, -7.84, -4.52], [50.0, -3.24, -4.03, -2.44], [100.0, -1.13, -1.7, -0.58]]"
+  }
+ ],
+ "headline": "NEGATIVE: in every (learned model, density) cell some classical comparator is not beaten by more than the margin -> 'no tested regime shows a practically significant GNN gain'.",
+ "gate_pass": false,
+ "lofo_median_r2": -0.043050083186037424
+}

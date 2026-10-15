@@ -463,6 +463,9 @@ def leak_check(jobs, unit, cfg, density=10, rep=0, noise_db=50.0):
     for j in jobs:
         preds = []
         for corrupt in (False, True):
+            try:
+                import rmbench_ext as _rx; _rx._GRAPHS.clear()          # v2: a cached graph must not survive between the clean and the corrupted pass
+            except Exception: pass
             u1 = dict(u0); y = np.array(u0["y"], float)
             if corrupt: y[te] += np.random.default_rng(1).normal(0, noise_db, len(te))
             u1["y"] = y; u, spec, prep, _ = _view_prep(u1, tr, cfg, j.get("hp", {}), {}, {})
@@ -526,7 +529,7 @@ def scale_jobs(Ks, gnn_paths, np_paths, pre_cfgs, finetune_steps=30, side=True):
 _SCALE_RE = re.compile(r"^(xferft|xfer|np_prior)(\d+)(?:_(.+))?$")
 def ref_for(name):
     m = _SCALE_RE.match(name); tag = (m.group(3) or "") if m else name
-    return "rk_side" if ("side" in tag or name in ("rk_gcn", "kgnn_side")) else "idw"
+    return "rk_side" if ("side" in tag or name in ("rk_gcn", "rk_gcn_s0", "kgnn_side")) else "idw"
 
 def scale_table(df, margin=MARGIN_PCT):
     """Gain of every method over its reference (idw, or rk_side for side-information models) per density, with the source-layout count K parsed from the name."""
@@ -555,3 +558,37 @@ def plot_scale(tab, fname=None, classical=("krig_global", "gp_ml", "rbf_spline",
     ax[0, 0].set_ylabel("RMSE gain over idw / rk_side (%)"); ax[0, -1].legend(fontsize=6, loc="best"); fig.tight_layout()
     if fname: fig.savefig(fname, dpi=200)
     return fig
+
+# =============================================================================== 9. run-integrity helpers (v2)
+def check_run(path, max_fail_frac=0.01, strict=True):
+    """Count failed jobs in a results JSONL. v1 silently analysed whatever survived; this raises instead."""
+    if not os.path.exists(path): raise FileNotFoundError(path)
+    n = nf = 0; by = {}; first = ""
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line: continue
+            for r in json.loads(line):
+                n += 1
+                if r.get("status") != "ok":
+                    nf += 1; by[r.get("name")] = by.get(r.get("name"), 0) + 1; first = first or str(r.get("err", ""))[-400:]
+    frac = nf / max(n, 1)
+    print(f"[check_run] {path}: {n} rows, {nf} failed ({frac:.2%})" + (f" by job {by}" if nf else ""))
+    if strict and (n == 0 or frac > max_fail_frac):
+        raise RuntimeError(f"{path}: {nf}/{n} failed jobs ({frac:.1%}) or no rows. Last error:\n{first}")
+    return dict(path=path, rows=n, failed=nf, frac=frac)
+
+def sanity_scale(df, rtol=1e-7):
+    """Pre-trained priors must (a) change the prediction, (b) differ across K and across architectures. Returns a list of problems (empty = ok).
+    v1 smoke run: xfer2_* == xfer8_* == xfer*_gcn_knn to the last digit, which means the prior was not used."""
+    ok = df[df.status == "ok"]; keys = [c for c in ("unit", "density", "rep") if c in ok]
+    w = ok.pivot_table(index=keys, columns="name", values="rmse"); pri = sorted(c for c in w.columns if _SCALE_RE.match(c)); probs = []
+    same = lambda a, b: len(w[[a, b]].dropna()) > 0 and np.allclose(w[[a, b]].dropna()[a], w[[a, b]].dropna()[b], rtol=rtol, atol=1e-9)
+    if "trend" in w:
+        probs += [f"{c} is identical to 'trend' (the prior adds nothing / is not loaded)" for c in pri if same(c, "trend")]
+    for i, a in enumerate(pri):
+        for b in pri[i + 1:]:
+            ma, mb = _SCALE_RE.match(a), _SCALE_RE.match(b)
+            if ma.group(1) == mb.group(1) and (ma.group(2), ma.group(3)) != (mb.group(2), mb.group(3)) and same(a, b):
+                probs.append(f"{a} and {b} are identical (K or architecture has no effect)")
+    return probs

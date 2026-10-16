@@ -812,3 +812,118 @@ if HAVE_TORCH:
         return paths
 
     NEW_METHODS.update(rk_gcn2=predict_rk_gcn2)
+
+# ===== v4 BEGIN (appended by the v4 notebook; the notebook truncates the file at this marker before appending, so re-running is safe) =====
+# Pointwise transferable PRIOR + kriging of what is left, with a cross-validated do-no-harm gate. Pure numpy / sklearn (no torch), so it is cheap and
+# fits in every spawned worker.  Only reads prep['res'][tr] / u['y'][tr]; test labels never enter (leak_check applies to it like to every other method).
+import copy, pickle
+
+def _plant_signal(u0, pl):
+    """The planted function f(side) at every point of the map (same construction as _maybe_plant; used only to MEASURE recoverability in diagnostics)."""
+    S = np.asarray(u0["side"], float); S = S.reshape(len(S), -1); Z = (S - S.mean(0)) / (S.std(0) + 1e-9)
+    return _plant_f(Z.shape[1], pl.get("seed", 0))(Z)
+
+def episode_arrays(name, cache_dir, d, r, cfg, hp, plant=None, max_pts=600):
+    """One SOURCE episode -> dict(X features, r = normalised trend residual at ALL points of the source map [, f = planted signal]). Source maps are fully observed;
+    evaluation maps never pass through this function during pre-training."""
+    import rmbench_ext as rx, rmbench_ext2 as r2
+    u0 = _maybe_plant(rx.get_unit_ext(name, cache_dir), dict(plant=plant))
+    tr, te = r2.split_for2(u0, d, 700 + r, cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
+    u, spec = r2.view_for_split2(u0, tr); prep = r2.prepare2(u, tr, hp.get("fset", "geo_side"), cfg["clip"], spec)
+    X = np.asarray(prep["X"], np.float32); y = np.clip(np.asarray(prep["res"], float) / float(prep["sigma"]), -6, 6).astype(np.float32)
+    idx = np.sort(np.random.default_rng(1000 * int(r) + int(d)).choice(len(y), min(len(y), max_pts), replace=False))
+    out = dict(X=X[idx], r=y[idx])
+    if plant: out["f"] = _plant_signal(u0, plant)[idx].astype(np.float32)
+    return out
+
+def pretrain_prior(sources, val_sources, cfg, out_path, dens=(300,), reps=1, plant=None, hp=None, hidden=(128, 128, 128), max_epochs=80, patience=8,
+                   lr=2e-3, alpha=1e-4, batch=2048, max_pts=600, seed=0, log=print):
+    """Dense regression  r_i ~ MLP(X_i)  on SOURCE maps (no labels of the evaluation map, no coordinates). Checkpoint = best epoch on held-out SOURCE layouts."""
+    from sklearn.neural_network import MLPRegressor
+    if os.path.exists(out_path): return out_path
+    hp = dict(fset="geo_side", **(hp or {}))
+    def build(specs):
+        E, bad = [], 0
+        for (n, c, d, r) in specs:
+            try: E.append(episode_arrays(n, c, d, r, cfg, hp, plant, max_pts))
+            except Exception: bad += 1
+        if bad: log(f"    ({bad} episodes could not be built and were skipped)")
+        return E
+    te_ = build([(n, c, d, r) for (n, c) in sources for d in dens for r in range(reps)]); va_ = build([(n, c, d, 0) for (n, c) in val_sources for d in dens])
+    if len(te_) < 5 or not va_: raise RuntimeError(f"too few episodes (train {len(te_)}, val {len(va_)}); check the source units")
+    din = te_[0]["X"].shape[1]; te_ = [e for e in te_ if e["X"].shape[1] == din]; va_ = [e for e in va_ if e["X"].shape[1] == din]
+    Xtr, rtr = np.concatenate([e["X"] for e in te_]), np.concatenate([e["r"] for e in te_]); Xva, rva = np.concatenate([e["X"] for e in va_]), np.concatenate([e["r"] for e in va_])
+    net = MLPRegressor(hidden_layer_sizes=tuple(hidden), alpha=alpha, batch_size=batch, learning_rate_init=lr, random_state=seed, shuffle=True)
+    var_va = float(rva.var()) + 1e-12; best, best_net, bad, t0 = np.inf, None, 0, time.time()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for ep in range(max_epochs):
+            net.partial_fit(Xtr, rtr); mse = float(np.mean((net.predict(Xva) - rva) ** 2))
+            if mse < best - 1e-6: best, best_net, bad = mse, copy.deepcopy(net), 0
+            else: bad += 1
+            if ep % 5 == 4: log(f"    prior pretrain epoch {ep + 1}  val mse {mse:.4f}  val R2 {1 - mse / var_va:+.4f}  best R2 {1 - best / var_va:+.4f}  [{time.time() - t0:.0f}s, {len(rtr)} pts]")
+            if bad >= patience: break
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    with open(out_path, "wb") as fh: pickle.dump(dict(net=best_net, din=int(din), val_mse=best, val_r2=float(1 - best / var_va), n_train_pts=int(len(rtr)), plant=plant), fh)
+    return out_path
+
+def pretrain_prior_scale(SRC, VAL, Ks, cfg, out_dir, tag, plant=None, **kw):
+    """One prior per K (first K source layouts). SRC / VAL = list (per layout) of [(unit name, cache dir)]."""
+    paths = {}; val = [p for L in VAL for p in L]
+    for K in Ks:
+        if K > len(SRC): raise ValueError(f"K={K} but only {len(SRC)} source layouts")
+        names = [p for L in SRC[:K] for p in L]; print(f"=== prior [{tag}] K={K}: {len(names)} source units, validation on {len(val)} held-out source units")
+        paths[K] = pretrain_prior(names, val, cfg, os.path.join(out_dir, f"{tag}_K{K}.pkl"), plant=plant, seed=int(K), **kw)
+    return paths
+
+_PRIOR_CK = {}
+def _load_prior(path):
+    if path not in _PRIOR_CK:
+        with open(path, "rb") as fh: _PRIOR_CK[path] = pickle.load(fh)
+    return _PRIOR_CK[path]
+
+def predict_rk_prior(u, tr, te, prep, hp, seed=0):
+    """rk_side applied to  res - prior(X)  plus prior(X).  hp['gate'] (default True): a 5-fold CV INSIDE the labelled set chooses between this and plain rk_side
+    (paired squared-error difference, accept only if z > hp.z and relative MSE gain > hp.rel, i.e. 'do no harm').  gate=False always uses the prior."""
+    import rmbench_ext2 as r2
+    tr = np.asarray(tr); te = np.asarray(te); rk_hp = dict(fset=hp.get("fset", "geo_side"))
+    base_pred, _ = r2.predict_rk_side(u, tr, te, prep, rk_hp); base_pred = np.asarray(base_pred, float)
+    ck = _load_prior(hp["init_path"]); X = np.asarray(prep["X"], np.float32)
+    if X.shape[1] != ck["din"]: raise ValueError(f"prior expects {ck['din']} features, this map has {X.shape[1]}")
+    sig = float(prep["sigma"]); p = np.asarray(ck["net"].predict(X), float) * sig
+    prep1 = prep.copy() if hasattr(prep, "copy") else copy.copy(prep); prep1["res"] = np.asarray(prep["res"], float) - p
+    cand, _ = r2.predict_rk_side(u, tr, te, prep1, rk_hp); cand = np.asarray(cand, float) + p[te]
+    n = len(tr); info = dict(accepted=0.0, cv_z=0.0, cv_gain_rel=0.0, prior_std_sigma=float(p.std() / (sig + 1e-12)))
+    if not hp.get("gate", True): info["accepted"] = 1.0; return cand, info
+    if n < int(hp.get("min_labels", 30)): return base_pred, info
+    rng = np.random.default_rng(seed); y = np.asarray(u["y"], float); perm = rng.permutation(n); e0 = np.zeros(n); e1 = np.zeros(n)
+    for f in np.array_split(np.arange(n), int(hp.get("folds", 5))):
+        hold = perm[f]; keep = np.ones(n, bool); keep[hold] = False; trf, tef = tr[keep], tr[hold]
+        b0, _ = r2.predict_rk_side(u, trf, tef, prep, rk_hp); b1, _ = r2.predict_rk_side(u, trf, tef, prep1, rk_hp)
+        e0[hold] = (np.asarray(b0, float) - y[tef]) ** 2; e1[hold] = (np.asarray(b1, float) + p[tef] - y[tef]) ** 2
+    d = e0 - e1; z = float(d.mean() / (d.std(ddof=1) / math.sqrt(n) + 1e-12)); gain = float(d.mean() / (e0.mean() + 1e-12)); info.update(cv_z=z, cv_gain_rel=gain)
+    if z > float(hp.get("z", 2.5)) and gain > float(hp.get("rel", 0.01)): info["accepted"] = 1.0; return cand, info
+    return base_pred, info
+
+NEW_METHODS["rk_prior"] = predict_rk_prior
+
+def prior_jobs(paths, tag="prior", fset="geo_side", z=2.5, rel=0.01):
+    J = []
+    for K, pth in paths.items():
+        J.append(dict(name=f"{tag}_K{K}", method="rk_prior", hp=dict(fset=fset, init_path=pth, gate=True, z=z, rel=rel)))
+        J.append(dict(name=f"{tag}_K{K}_ng", method="rk_prior", hp=dict(fset=fset, init_path=pth, gate=False)))
+    return J
+
+def claim_cells(df, learned, comps, family, margin=MARGIN_PCT):
+    """Learned arm vs EVERY comparator, layout-cluster bootstrap. Returns (full contrast table, one row per (arm, density))."""
+    c = contrast_table(df.assign(family=family, split="random"), [(a, b) for a in learned for b in comps], by=("family", "density"))
+    if not len(c): return c, c
+    w = c.groupby(["A", "density"]).agg(worst_ci_lo=("ci_lo", "min"), worst_gain_pct=("mean_gain_pct", "min"), best_gain_pct=("mean_gain_pct", "max"),
+                                         min_ci_hi=("ci_hi", "min"), n_comp=("B", "nunique")).reset_index()
+    w["clears_margin_vs_all"] = w.worst_ci_lo > margin; w["excluded"] = w.min_ci_hi < margin
+    return c, w
+
+def accept_rate(df, learned):
+    ok = df[(df.status == "ok") & df.name.isin(learned)]
+    return ok.groupby(["name", "density"]).accepted.mean().unstack("density") if "accepted" in ok else pd.DataFrame()
+# ===== v4 END =====

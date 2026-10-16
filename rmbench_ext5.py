@@ -1,4 +1,4 @@
-"""rmbench_ext5: regime-map statistics, extra baselines, strawman diagnostics and the training-scale experiment.
+"""rmbench_ext5 (v3): regime-map statistics, extra baselines, strawman diagnostics and the training-scale experiment.
 
 Sits next to rmbench_core / rmbench_nn / rmbench_ext / rmbench_ext2 (all unchanged). Only ADDS code.
 Pure numpy/pandas/sklearn parts (sections 1-3) import without torch; torch parts are guarded by HAVE_TORCH.
@@ -398,7 +398,7 @@ def run_task5(task):
     import rmbench_ext as rx, rmbench_ext2 as r2
     cfg, rows = task["cfg"], []
     try:
-        u0 = rx.get_unit_ext(task["unit"], cfg["cache_dir"])
+        u0 = _maybe_plant(rx.get_unit_ext(task["unit"], cfg["cache_dir"]), cfg)      # v3: planted-signal control (no-op unless cfg["plant"])
         tr, te = r2.split_for2(u0, task["density"], task["rep"], cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
     except Exception:
         return [dict(task_id=task["id"], unit=task["unit"], density=task["density"], rep=task["rep"], name=j["name"], method=j["method"], status="fail", err=traceback.format_exc(limit=3)) for j in task["jobs"]]
@@ -458,13 +458,13 @@ def run_tasks5(tasks, out_path, n_jobs=1, log_every=25):
 def leak_check(jobs, unit, cfg, density=10, rep=0, noise_db=50.0):
     """Predictions must be bit-identical when the TEST labels are corrupted. Returns {job name: True/False}."""
     import rmbench_ext as rx, rmbench_ext2 as r2
-    u0 = rx.get_unit_ext(unit, cfg["cache_dir"]); tr, te = r2.split_for2(u0, density, rep, cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
+    u0 = _maybe_plant(rx.get_unit_ext(unit, cfg["cache_dir"]), cfg); tr, te = r2.split_for2(u0, density, rep, cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
     out = {}
     for j in jobs:
         preds = []
         for corrupt in (False, True):
             try:
-                import rmbench_ext as _rx; _rx._GRAPHS.clear()          # v2: a cached graph must not survive between the clean and the corrupted pass
+                import rmbench_ext as _rx; _rx._GRAPHS.clear(); _GRAPHS.clear()          # v2: a cached graph must not survive between the clean and the corrupted pass
             except Exception: pass
             u1 = dict(u0); y = np.array(u0["y"], float)
             if corrupt: y[te] += np.random.default_rng(1).normal(0, noise_db, len(te))
@@ -527,9 +527,7 @@ def scale_jobs(Ks, gnn_paths, np_paths, pre_cfgs, finetune_steps=30, side=True):
     return J
 
 _SCALE_RE = re.compile(r"^(xferft|xfer|np_prior)(\d+)(?:_(.+))?$")
-def ref_for(name):
-    m = _SCALE_RE.match(name); tag = (m.group(3) or "") if m else name
-    return "rk_side" if ("side" in tag or name in ("rk_gcn", "rk_gcn_s0", "kgnn_side")) else "idw"
+# (ref_for is defined in section 10: v3 maps the rk_gcn2 family to rk_side)
 
 def scale_table(df, margin=MARGIN_PCT):
     """Gain of every method over its reference (idw, or rk_side for side-information models) per density, with the source-layout count K parsed from the name."""
@@ -592,3 +590,225 @@ def sanity_scale(df, rtol=1e-7):
             if ma.group(1) == mb.group(1) and (ma.group(2), ma.group(3)) != (mb.group(2), mb.group(3)) and same(a, b):
                 probs.append(f"{a} and {b} are identical (K or architecture has no effect)")
     return probs
+
+# =============================================================================== 10. v3 additions (written AFTER the full v2 run; recorded in prereg_ext5_amend_v3.json)
+import collections
+
+# ---- 10.1 planted-signal POSITIVE CONTROL: y += amp * std(y) * f(side covariates), f nonlinear + interactions, SAME function on every map.
+#      Ridge+IDW (rk_side) cannot represent f; a model pre-trained across many maps can learn it. If no learned arm beats the classical ones here,
+#      the learning pipeline (not the idea of GNNs) is the problem and a negative headline is not credible.
+def _plant_f(d, seed=0):
+    rng = np.random.default_rng(int(seed)); w1, w2, w3 = rng.normal(size=(3, d)) / math.sqrt(d)
+    def raw(Z):
+        a, b, c = Z @ w1, Z @ w2, Z @ w3
+        return np.cos(2.0 * a) + a * c + 0.7 * np.abs(b) + 0.5 * np.sin(3.0 * a * b)         # even / interaction terms: ~zero linear projection on the covariates
+    r = raw(np.random.default_rng(12345).normal(size=(20000, d)))                          # fixed reference sample -> same centring / scale on every map
+    return lambda Z: (raw(Z) - r.mean()) / (r.std() + 1e-9)
+
+def _maybe_plant(u0, cfg):
+    pl = (cfg or {}).get("plant")
+    if not pl: return u0
+    if "side" not in u0: raise KeyError("plant needs the unit's side-information array u['side']")
+    S = np.asarray(u0["side"], float); S = S.reshape(len(S), -1); Z = (S - S.mean(0)) / (S.std(0) + 1e-9)
+    f = _plant_f(Z.shape[1], pl.get("seed", 0))(Z)                                        # uses ONLY side information, never labels
+    u1 = dict(u0); y = np.asarray(u0["y"], float); u1["y"] = y + float(pl.get("amp", 0.3)) * float(np.std(y)) * f
+    return u1
+
+# ---- 10.2 pure numpy / pandas helpers ---------------------------------------------------------------------------------------------
+def add_abs_floor(ct, min_db=0.05):
+    """Absolute-dB floor next to the % margin (replaces silently dropping i1_2p5: a '5% win' of 0.004 dB is flagged, not hidden)."""
+    ct = ct.copy()
+    ct["above_floor"] = ct.mean_gain_db.abs() >= min_db
+    ct["verdict_abs"] = np.where(ct.verdict.isin(["A better", "A worse"]) & ~ct.above_floor, ct.verdict + f" (< {min_db:g} dB: negligible)", ct.verdict)
+    return ct
+
+def headroom_table(df, cov, comparators=("idw", "rk_side", "krig_global", "gp_ml", "kgnn"), min_comp=2):
+    """Upper bound on what ANY learner could gain: (best classical RMSE - estimated noise floor) / best classical RMSE, per density.
+    floor = resid_std * sqrt(noise_frac) from the variogram nugget of the unit (rough; a floor of ~0 means 'no nugget found', i.e. headroom is NOT bounded by this estimate)."""
+    sub = df[df.name.isin(comparators)]
+    if not len(sub): return pd.DataFrame()
+    u = unit_rmse(sub); keys = [c for c in u.columns if c not in ("name", "rmse")]
+    w = u.pivot_table(index=keys, columns="name", values="rmse"); cols = [c for c in comparators if c in w.columns]
+    if len(cols) < min_comp: return pd.DataFrame()
+    best = w[cols].min(axis=1).rename("best_classical").reset_index().merge(cov[["resid_std", "noise_frac"]], left_on="unit", right_index=True, how="left")
+    best["floor_rmse"] = best.resid_std * np.sqrt(best.noise_frac.clip(0, 1)); best["headroom_db"] = (best.best_classical - best.floor_rmse).clip(lower=0)
+    best["headroom_pct"] = 100 * best.headroom_db / best.best_classical; best["at_floor"] = best.best_classical <= 1.10 * best.floor_rmse
+    rows = []
+    for d, g in best.groupby("density"):
+        m, lo, hi, nc = _cluster_mean_ci(g.headroom_pct, g.parent)
+        rows.append(dict(density=d, n_clusters=nc, best_classical_rmse=float(g.best_classical.mean()), floor_rmse_est=float(g.floor_rmse.mean()),
+                         max_possible_gain_pct=m, ci_lo=lo, ci_hi=hi, share_units_at_floor=float(g.at_floor.mean()), share_nugget_zero=float((g.noise_frac < 1e-3).mean())))
+    return pd.DataFrame(rows)
+
+def scale_pathologies(tab, margin=MARGIN_PCT):
+    """Scale curves that should make a reviewer distrust the training recipe: flat at a loss across K (pre-training has no effect), or WORSE with more source layouts."""
+    rows = []
+    for (kind, tag, d), g in tab[tab.K > 0].groupby(["kind", "tag", "density"]):
+        g = g.sort_values("K")
+        if len(g) < 3: continue
+        v = g.mean_gain_pct.values; flat_loss = bool((v.max() - v.min() < 1.0) and (v.max() < -margin))
+        worse = bool(any(v[j] < v[i] - margin for i in range(len(v)) for j in range(i + 1, len(v))))
+        if flat_loss or worse:
+            rows.append(dict(method=f"{kind}_{tag}".strip("_"), density=d, Ks=[int(k) for k in g.K], gains_pct=[round(float(x), 2) for x in v], flat_at_a_loss=flat_loss, worse_with_more_sources=worse))
+    return pd.DataFrame(rows)
+
+def ref_for(name):                                        # v3: also maps the rk_gcn2 family to rk_side
+    m = _SCALE_RE.match(name); tag = (m.group(3) or "") if m else name
+    return "rk_side" if ("side" in tag or tag.startswith("rkgcn") or name in ("rk_gcn", "rk_gcn_s0", "rk_gcn2", "rk_gcn2_s0", "kgnn_side")) else "idw"
+
+def equivalence_check(ja, jb, unit, cfg, density=20, rep=0, atol=1e-4):
+    """Two jobs must give the same prediction (dBm) on the same split. Used to prove rk_gcn2 with steps=0 IS rk_side (non-vacuous: the model path still runs)."""
+    import rmbench_ext as rx, rmbench_ext2 as r2
+    u0 = _maybe_plant(rx.get_unit_ext(unit, cfg["cache_dir"]), cfg)
+    tr, te = r2.split_for2(u0, density, rep, cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
+    preds = []
+    for j in (ja, jb):
+        u, spec, prep, _ = _view_prep(u0, tr, cfg, j.get("hp", {}), {}, {}); preds.append(np.asarray(dispatch(j, u, tr, te, prep, 7)[0], float))
+    d = float(np.max(np.abs(preds[0] - preds[1]))); return dict(a=ja["name"], b=jb["name"], max_abs_diff_db=d, ok=bool(d <= atol))
+
+def assert_disjoint(pairs_a, pairs_b, name_a="evaluation", name_b="source"):
+    """pairs = [(unit name, cache dir)]. No source unit may have the same (n, sum(pos), sum(y)) fingerprint as an evaluation unit."""
+    import rmbench_ext as rx
+    def fp(n, c): u = rx.get_unit_ext(n, c); return (len(u["y"]), round(float(np.sum(np.asarray(u["pos"], float))), 3), round(float(np.sum(np.asarray(u["y"], float))), 3))
+    A = {fp(n, c) for n, c in pairs_a}; clash = [n for n, c in pairs_b if fp(n, c) in A]
+    if clash: raise AssertionError(f"{len(clash)} {name_b} units look identical to {name_a} units, e.g. {clash[:3]}")
+    return True
+
+def extra_jobs_v3():
+    return [dict(name="rk_gcn2", method="rk_gcn2", hp=dict(fset="geo_side", steps=150)), dict(name="rk_gcn2_s0", method="rk_gcn2", hp=dict(fset="geo_side", steps=0))]
+
+def scale_jobs_v3(Ks, paths, finetune_steps=30, tag="rkgcn2"):
+    J = []
+    for K in Ks:
+        p = paths.get(K)
+        if p:
+            J.append(dict(name=f"xfer{K}_{tag}", method="rk_gcn2", hp=dict(fset="geo_side", init_path=p, steps=0)))
+            J.append(dict(name=f"xferft{K}_{tag}", method="rk_gcn2", hp=dict(fset="geo_side", init_path=p, steps=finetune_steps)))
+    return J
+
+# ---- 10.3 torch: rk_gcn2 (exact rk_side base + do-no-harm correction), pre-training of that model across source layouts -------------
+if HAVE_TORCH:
+    _RK2_CK = {}
+    def _rk_ctx(u, tr, prep, hp):
+        """Everything the residual GCN needs for ONE map and ONE labelled set tr (same construction as predict_rk_gcn, exposed as closures)."""
+        import rmbench_nn as rn
+        tr = np.asarray(tr); N = len(u["y"]); g = rn.get_graph(u, int(hp.get("k", 8)), hp.get("_graph_cache", _GRAPHS)); X = torch.tensor(prep["X"], dtype=torch.float32)
+        sig = prep["sigma"]; res = np.asarray(prep["res"]); Pt = torch.tensor(np.asarray(u["pos"]), dtype=torch.float32)
+        rn_ = torch.zeros(N); rn_[torch.as_tensor(tr)] = torch.tensor(res[tr] / sig, dtype=torch.float32)
+        A = np.column_stack([np.ones(N), prep["X"]]); lam = float(hp.get("lam", 1.0)); pen = np.eye(A.shape[1]); pen[0, 0] = 0
+        def base_for(vis):
+            vis = np.asarray(vis); At = A[vis]; beta = np.linalg.solve(At.T @ At + lam * pen, At.T @ res[vis]); fit = A @ beta
+            r2_ = torch.tensor((res[vis] - fit[vis]) / sig, dtype=torch.float32)
+            return torch.tensor(fit / sig, dtype=torch.float32) + rn.idw_torch(Pt, torch.as_tensor(vis, dtype=torch.long), r2_, 2.0, 8)
+        def run(model, vis, train):
+            m = torch.zeros(N); m[torch.as_tensor(np.asarray(vis), dtype=torch.long)] = 1.0; model.train(train)
+            return model(X, rn_ * m, m, g, base_for(vis))
+        return dict(N=N, sig=sig, rn_=rn_, run=run, base_for=base_for, din=int(X.shape[1] + 9), tr=tr)
+
+    def _load_rk2(path, din):
+        import rmbench_nn as rn
+        if path not in _RK2_CK: _RK2_CK[path] = torch.load(path, map_location="cpu")
+        ck = _RK2_CK[path]
+        if int(ck["din"]) != int(din): raise ValueError(f"pre-trained model expects {ck['din']} inputs, this map has {din}")
+        m = rn.GCNNet(int(ck["din"]), int(ck["hidden"]), int(ck["layers"]), float(ck["dropout"])); m.load_state_dict(ck["state"]); return m
+
+    def predict_rk_gcn2(u, tr, te, prep, hp, seed=0):
+        """v3 'same-information' GNN.  prediction = EXACT rk_side prediction + learned correction.
+        The correction is (model output - its own fast base) * sigma, so with the zero-initialised head (or steps=0 and no init_path) it is 0 and the
+        prediction equals rk_side bit-for-bit (checked in Part B2).  A trained checkpoint replaces the step-0 model ONLY if the paired validation loss
+        difference is significant (z > hp.z) and larger than hp.rel of the step-0 loss ('do no harm'); the v2 rule took the best of ~30 noisy checkpoints
+        on 3-6 validation points, which is exactly what C2 measured as harm.  With init_path, step 0 is the PRE-TRAINED prior."""
+        import rmbench_nn as rn, rmbench_ext2 as r2
+        torch.manual_seed(seed); rng = np.random.default_rng(seed); tr = np.asarray(tr); te = np.asarray(te); n = len(tr)
+        base_pred, _ = r2.predict_rk_side(u, tr, te, prep, dict(fset=hp.get("fset", "geo_side")))
+        ctx = _rk_ctx(u, tr, prep, hp); sig, rn_, run = ctx["sig"], ctx["rn_"], ctx["run"]; init = hp.get("init_path")
+        model = _load_rk2(init, ctx["din"]) if init else rn.GCNNet(ctx["din"], int(hp.get("hidden", 32)), int(hp.get("layers", 2)), float(hp.get("dropout", 0.1)))
+        state0 = {k: t.clone() for k, t in model.state_dict().items()}; steps = int(hp.get("steps", 150)); accepted, z, gain = 0.0, 0.0, 0.0
+        vf = float(hp.get("val_frac", 0.3 if n < 50 else 0.2)); nv = int(np.clip(round(vf * n), 0, max(0, n - 4)))
+        if steps > 0 and nv >= int(hp.get("n_min_val", 8)):          # fewer validation points than n_min_val: no checkpoint could ever be accepted, so do not spend the compute; rk_side is returned by construction
+            perm = rng.permutation(tr); val, fit = perm[:nv], perm[nv:]
+            val_t = torch.as_tensor(val, dtype=torch.long); hub = lambda o, t: F.huber_loss(o, t, delta=1.5, reduction="none")
+            opt = torch.optim.AdamW(model.parameters(), lr=float(hp.get("lr", 3e-3 if init else 1e-2)), weight_decay=float(hp.get("wd", 1e-4)))
+            l0, best_g, best_state, best_d, bad = None, -np.inf, None, None, 0
+            if nv:
+                with torch.no_grad(): l0 = hub(run(model, fit, False)[val_t], rn_[val_t]).numpy()
+            for it in range(steps):
+                q = int(np.clip(round(rng.uniform(0.15, 0.5) * len(fit)), 1, max(1, len(fit) - 2))); pp = rng.permutation(fit); Q, V = pp[:q], pp[q:]
+                opt.zero_grad(); out = run(model, V, True); Qt = torch.as_tensor(Q, dtype=torch.long)
+                hub(out[Qt], rn_[Qt]).mean().backward(); nn.utils.clip_grad_norm_(model.parameters(), 2.0); opt.step()
+                if nv and it % 5 == 4:
+                    with torch.no_grad(): dk = l0 - hub(run(model, fit, False)[val_t], rn_[val_t]).numpy()
+                    if dk.mean() > best_g + 1e-6: best_g, best_state, best_d, bad = float(dk.mean()), {k: t.clone() for k, t in model.state_dict().items()}, dk.copy(), 0
+                    else:
+                        bad += 1
+                        if bad >= 8: break
+            if nv >= int(hp.get("n_min_val", 8)) and best_state is not None:
+                se = float(best_d.std(ddof=1)) / math.sqrt(nv); z = best_g / (se + 1e-12); gain = best_g / (float(l0.mean()) + 1e-12)
+                if z > float(hp.get("z", 2.5)) and gain > float(hp.get("rel", 0.02)): accepted = 1.0
+            model.load_state_dict(best_state if accepted else state0)
+        with torch.no_grad():
+            out_all = run(model, tr, False); base_all = ctx["base_for"](tr)
+            corr = ((out_all - base_all)[torch.as_tensor(te, dtype=torch.long)].numpy() * sig).astype(float)
+        return np.asarray(base_pred, float) + corr, dict(accepted=accepted, val_z=float(z), val_gain_rel=float(gain), n_val=float(nv), max_abs_corr=float(np.abs(corr).max()) if len(corr) else 0.0)
+
+    def _rk_episode(name, cache_dir, d, r, cfg, hp, plant):
+        import rmbench_ext as rx, rmbench_ext2 as r2
+        u0 = _maybe_plant(rx.get_unit_ext(name, cache_dir), dict(plant=plant))
+        tr, te = r2.split_for2(u0, d, 700 + r, cfg["n_test"], cfg.get("split_mode", "random"), cfg.get("block_buffer", 0.0), cfg.get("test_salt", ""))
+        u, spec = r2.view_for_split2(u0, tr); prep = r2.prepare2(u, tr, hp.get("fset", "geo_side"), cfg["clip"], spec)
+        return _rk_ctx(u, tr, prep, dict(hp, _graph_cache={}))
+
+    def pretrain_rk_gcn2(sources, val_sources, cfg, out_path, steps, hp=None, dens=(100, 300, 1000), reps=2, seed=0, lr=3e-3, eval_every=200, pool_size=48, new_per_step=0.5, n_val_ep=24, batch=2, plant=None, log=print):
+        """Pre-train the residual GCN (exact-style fast base + zero-initialised head) on SOURCE maps only. sources / val_sources = [(unit name, cache dir)].
+        Training draws episodes from a rotating pool (a new random episode enters with probability new_per_step per step), so context building stays cheap for any K.
+        The checkpoint is chosen on held-out SOURCE layouts (val_sources), never on evaluation layouts."""
+        import rmbench_nn as rn
+        if os.path.exists(out_path): return out_path
+        hp = dict(fset="geo_side", **(hp or {})); hidden, layers, drop = int(hp.get("hidden", 32)), int(hp.get("layers", 2)), float(hp.get("dropout", 0.1))
+        rng = np.random.default_rng(seed); torch.manual_seed(seed)
+        specs = [(n, c, d, r) for (n, c) in sources for d in dens for r in range(reps)]; vspecs = [(n, c, d, 0) for (n, c) in val_sources for d in dens]
+        vspecs = [vspecs[i] for i in np.random.default_rng(1).permutation(len(vspecs))[:n_val_ep]]
+        def build_one():
+            for _ in range(6):
+                try: return _rk_episode(*specs[int(rng.integers(len(specs)))], cfg, hp, plant)
+                except Exception: continue
+            raise RuntimeError("could not build a pre-training episode (6 tries); check the source units")
+        pool = collections.deque(maxlen=pool_size)
+        for _ in range(min(pool_size, 8)): pool.append(build_one())
+        vctx = []
+        for sp in vspecs:
+            try: vctx.append(_rk_episode(*sp, cfg, hp, plant))
+            except Exception: continue
+        if not vctx: raise RuntimeError("no validation episode could be built")
+        hub = lambda o, t: F.huber_loss(o, t, delta=1.5)
+        model = rn.GCNNet(pool[0]["din"], hidden, layers, drop); opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4); best, state, t0 = float("inf"), None, time.time()
+        for s in range(steps):
+            if rng.random() < new_per_step: pool.append(build_one())
+            opt.zero_grad(); tot = 0.0
+            for _ in range(batch):
+                ctx = pool[int(rng.integers(len(pool)))]; tr = ctx["tr"]; q = int(np.clip(round(rng.uniform(0.15, 0.5) * len(tr)), 1, max(1, len(tr) - 2))); pp = rng.permutation(tr); Q, V = pp[:q], pp[q:]
+                Qt = torch.as_tensor(Q, dtype=torch.long); loss = hub(ctx["run"](model, V, True)[Qt], ctx["rn_"][Qt]) / batch; loss.backward(); tot += float(loss)
+            nn.utils.clip_grad_norm_(model.parameters(), 2.0); opt.step()
+            if s % eval_every == eval_every - 1 or s == steps - 1:
+                vr = np.random.default_rng(123); vals = []
+                with torch.no_grad():
+                    for ctx in vctx:
+                        tr = ctx["tr"]; q = int(np.clip(round(0.3 * len(tr)), 1, max(1, len(tr) - 2))); pp = vr.permutation(tr); Qt = torch.as_tensor(pp[:q], dtype=torch.long)
+                        vals.append(float(hub(ctx["run"](model, pp[q:], False)[Qt], ctx["rn_"][Qt])))
+                v = float(np.mean(vals))
+                if v < best: best, state = v, {k: t.clone() for k, t in model.state_dict().items()}
+                log(f"    rk_gcn2 pretrain step {s + 1}/{steps} train {tot:.4f} val(source layouts) {v:.4f} best {best:.4f} [{time.time() - t0:.0f}s]")
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        torch.save(dict(state=state, hidden=hidden, layers=layers, dropout=drop, din=int(pool[0]["din"]), val=best, steps=steps), out_path); return out_path
+
+    def pretrain_rk2_scale(src_layouts, val_layouts, Ks, cfg_src, out_dir, base_steps, steps_per_layout, plant=None, tag="rk2", hp=None, dens=None):
+        """One model per K (first K source layouts). The step budget GROWS with K (base_steps + steps_per_layout * K) so large K is not under-trained, and every
+        checkpoint is selected on the same held-out source layouts. src_layouts / val_layouts = list (per layout) of [(unit name, cache dir)]."""
+        paths = {}; val = [p for L in val_layouts for p in L]
+        for K in Ks:
+            if K > len(src_layouts): raise ValueError(f"K={K} but only {len(src_layouts)} source layouts")
+            names = [p for L in src_layouts[:K] for p in L]; print(f"=== rk_gcn2 [{tag}] K={K}: {len(names)} source units, {base_steps + steps_per_layout * K} steps, validation on {len(val)} held-out source units")
+            paths[K] = pretrain_rk_gcn2(names, val, cfg_src, os.path.join(out_dir, f"{tag}_K{K}.pt"), base_steps + steps_per_layout * K, hp=hp, dens=tuple(dens or cfg_src["densities"]), seed=K, plant=plant)
+        return paths
+
+    NEW_METHODS.update(rk_gcn2=predict_rk_gcn2)

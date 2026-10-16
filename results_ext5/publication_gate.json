@@ -12,12 +12,22 @@
    "detail": "results_ext5/prereg_ext5.json (commit it to git)"
   },
   {
-   "check": "leak checks ran for B and D",
+   "check": "v3 amendment written (post-hoc changes are on the record)",
    "passed": true,
-   "detail": "['B', 'D']"
+   "detail": "results_ext5/prereg_ext5_amend_v3.json (commit it to git)"
+  },
+  {
+   "check": "leak checks ran for B, B3, D, D3",
+   "passed": true,
+   "detail": "['B', 'B3', 'D', 'D3']"
   },
   {
    "check": "leak check B: identical predictions under corrupted test labels",
+   "passed": true,
+   "detail": "[]"
+  },
+  {
+   "check": "leak check B3: identical predictions under corrupted test labels",
    "passed": true,
    "detail": "[]"
   },
@@ -27,12 +37,17 @@
    "detail": "[]"
   },
   {
-   "check": "every results file has <= 1% failed jobs",
+   "check": "leak check D3: identical predictions under corrupted test labels",
    "passed": true,
-   "detail": "8 files checked; bad: []"
+   "detail": "[]"
   },
   {
-   "check": "Part D priors applied and distinct across K / architecture",
+   "check": "every results file has <= 1% failed jobs",
+   "passed": true,
+   "detail": "13 files checked; bad: []"
+  },
+  {
+   "check": "Part D priors applied and distinct across K / architecture (old and v3 arms)",
    "passed": true,
    "detail": ""
   },
@@ -52,12 +67,34 @@
    "detail": "{'uji': 1.0, 'sod': 1.0}"
   },
   {
-   "check": "C1: rk_gcn is not clearly worse than rk_side (else debug rk_gcn first)",
+   "check": "Part A analysed AFTER Part E (gp_ml / rbf_spline / coord_mlp rows present)",
+   "passed": true,
+   "detail": "re-run the Part A cells after Part E"
+  },
+  {
+   "check": "C1 (v3): rk_gcn2 with steps=0 reproduces rk_side",
+   "passed": true,
+   "detail": "{'a': 'rk_gcn2_s0', 'b': 'rk_side', 'max_abs_diff_db': 0.0, 'ok': True}"
+  },
+  {
+   "check": "C1 (v3): rk_gcn2 is not clearly worse than rk_side at any density (else debug rk_gcn2)",
+   "passed": true,
+   "detail": "[[10.0, 0.0, 0.0, 0.0], [20.0, -0.0, -0.0, 0.0], [50.0, -0.29, -0.59, -0.06], [100.0, -0.08, -0.12, -0.03]]"
+  },
+  {
+   "check": "positive control: a learned arm beats every classical comparator on planted maps",
    "passed": false,
-   "detail": "[[10.0, -12.33, -15.31, -9.37], [20.0, -6.29, -7.84, -4.52], [50.0, -3.24, -4.03, -2.44], [100.0, -1.13, -1.7, -0.58]]"
+   "detail": "PC_PASS=False"
   }
  ],
- "headline": "NEGATIVE: in every (learned model, density) cell some classical comparator is not beaten by more than the margin -> 'no tested regime shows a practically significant GNN gain'.",
+ "headline": "VOID (positive control not passed): NEGATIVE: in every (learned model, density) cell some classical comparator is not beaten by more than the margin -> 'no tested regime shows a practically significant GNN gain'.",
  "gate_pass": false,
- "lofo_median_r2": -0.043050083186037424
+ "lofo_median_r2": -0.0025228803674337275,
+ "positive_control": false,
+ "equivalence": {
+  "a": "rk_gcn2_s0",
+  "b": "rk_side",
+  "max_abs_diff_db": 0.0,
+  "ok": true
+ }
 }

@@ -2,7 +2,7 @@
 
 A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and learned models (GCN, GAT, a kriging-initialised graph model called KGNN) that predict received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across independent parents (transmitters, building-floors or layouts, depending on the dataset).
 
-The work ran in five stages, and the older stages are never overwritten:
+The work ran in seven stages (round 6 is written but **not yet run**), and the older stages are never overwritten:
 
 | Stage | Notebook | Data | Purpose |
 |---|---|---|---|
@@ -11,6 +11,8 @@ The work ran in five stages, and the older stages are never overwritten:
 | **Round 2** (2026-10-12) | `radiomap_ext_conf2.ipynb` | UJI (fresh APs), SODIndoorLoc (new real data), wall simulator (new layouts), DeepMIMO | Pre-specified replication of the two surviving questions on fresh data |
 | **Round 3** | `radiomap_ext_conf3_kriging_attention.ipynb` | UJI, SODIndoorLoc (60-label density added), wall simulator | Meta-learned prior (`kgnn_prior*`), side-aware kernel, ensembles, gradient-boosting baseline (`gb_geo`), cost |
 | **Round 4** | `radiomap_ext_conf4_ablation.ipynb` | Round-3 real Wi-Fi units (UJI, SOD), fresh test salt `abl4` | Ablation: where does KGNN's edge come from? Learned parameters vs the fixed local-kriging structure |
+| **Round 5** | `radiomap_ext5_regime_scale.ipynb` | Wall simulator (256 source, 64 development and 64 fresh evaluation units) with a **planted** side-information signal | When can learning across layouts help at all? Regime map, extra baselines, training-scale experiment, and (v4) a pre-trained pointwise prior with a cross-validated do-no-harm gate, dose-response over planted amplitude |
+| **Round 6** (written, **not yet run**) | `radiomap_ext6_learnability.ipynb` | Same wall simulator, new fresh layouts (seeds 31 / 9), 24 generated covariates | Repeat the round-5 control where a single map provably cannot learn the signal: nonlinear within-map comparators, globally scaled plant, learnability-gap diagnostic (D0) |
 
 ## Summary of findings
 
@@ -25,6 +27,9 @@ The work ran in five stages, and the older stages are never overwritten:
 8. **Gradient boosting on coordinates is a weak baseline at low density and competitive only on dense data.** `gb_geo` is 18–33% worse than IDW on UJI random and 30% worse on SOD at 5 labels, but 4.5% better than IDW at 60 labels on SOD.
 
 9. **Where the edge comes from: the local-kriging structure, not training (round 4).** A local kriging of the K=12 nearest labels with a fixed default covariance (exponential in space, polar term, nugget; **no training at all**) already carries the gain. On UJI (random split) it beats IDW by +2.7% / +2.8% / −0.2% and global kriging by +5.8% / +2.2% / −1.1% at 5 / 10 / 20 labels (Holm-significant at 5 labels vs global kriging and at 10 labels vs IDW). Learning the six covariance parameters on top adds nothing measurable (pooled primary |gain| ≤ 1.1%, ≤ 0.1 dB; verdict NOT ESTABLISHED). The practical consequence is positive: a **training-free local kriging with a nugget** is the cheap, robust method to use at 5–10 labels, and it needs no GNN.
+
+10. **Cross-layout learning can win, but only when a planted signal is strong (round 5, v4, semi-synthetic).** A pointwise prior pre-trained on other layouts, followed by `rk_side` on the remainder and gated by 5-fold cross-validation, beats all five comparators (`idw`, `rk_side`, `krig_global`, `kgnn`, `gp_ml`) on fresh layouts in 6 of 6 (K, density) cells at planted amplitude 0.5 (CI lower bounds 4.4–5.3%, mean gain 7.2–8.6%), and in none at amplitude ≤ 0.3 (mean gain 0.0–3.0%, CI lower bound below the 2% margin). With no planted signal (amplitude 0) the gate returns `rk_side` (gain 0.00–0.04%, equivalent in all 6 cells). This is a simulator with an artificial signal; it says when transfer *can* help, not that it does on real maps.
+11. **The round-5 positive control was not clean, which is why round 6 exists.** The pre-registered D0 diagnostic failed on the development layouts (median corr(prior, f) = −0.19; linear R² of `f` on the model inputs 0.73 although `f` was meant to be nonlinear), so the planted `f` was largely linear in per-map standardised inputs and partly learnable within one map. Round 6 changes the plant and adds within-map nonlinear comparators; it has **no results yet**.
 
 Absolute differences are small compared with the noise of the targets, so always read percentages next to dB values. See [Limitations](#limitations).
 
@@ -44,6 +49,9 @@ Absolute differences are small compared with the noise of the targets, so always
 | Learning the KGNN kernel beats the same kernel untrained (round 4 primary) | **No / not established.** Pooled real Wi-Fi, 6 cells: −1.1% to +1.0%, none Holm-significant (frozen rule: NOT ESTABLISHED) |
 | Training-free local kriging (fixed default covariance + nugget) beats IDW and global kriging at 5–10 labels on real Wi-Fi | **Supported descriptively and in part by Holm-significant secondary contrasts** (UJI random: 2 of 6 cells significant, rest same sign or inconclusive). Not a pre-registered primary |
 | The nugget matters | Yes: freezing it at ~0 costs +4.1% RMSE at 20 labels (UJI random, Holm-significant); learning it vs the 0.2 default adds nothing |
+| A pre-trained cross-layout prior beats classical regression-kriging when a strong shared signal is planted (round 5, v4) | **Supported on fresh simulated layouts at amplitude 0.5 only** (6 of 6 cells, CI lower bound > 2%); not at amplitude ≤ 0.3. Semi-synthetic; the comparator set had no nonlinear within-map model |
+| The CV gate does no harm without shared structure (round 5, v4, amplitude 0) | Yes: equivalent to `rk_side` in all 6 cells (the ungated prior is 0.7–0.9% worse at 300 and 1000 labels, still inside the margin) |
+| A cross-layout prior helps on real radio maps | **Not tested.** No real dataset with shared side-information structure has been evaluated |
 | Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
 
 ![Real Wi-Fi RMSE versus labels](figures/fig2_real_wifi_rmse_vs_labels.png)
@@ -59,15 +67,20 @@ Absolute differences are small compared with the noise of the targets, so always
 | `run_ext.py` | Command-line runner for layer 1 (`smoke`, `uji`, `deepmimo`). **Exploratory**: its results are not reused in the confirmatory rounds |
 | `rmbench_ext2.py` | Layer 2: robust trend, wall simulator, side information, `rk_side`, cross-fitted tuning, pre-registration, transfer, gated outage reporting |
 | `rmbench_ext3.py` | Layer 3: SODIndoorLoc, `krig_side` / `kgnn_side`, building-level cluster bootstrap, equivalence margin, programmatic claim evaluation |
+| `rmbench_ext4.py` | Layer 4 (round 3): meta-learned kernel prior (`kgnn_prior*`), side-aware kernel, ensembles, gradient-boosting baseline |
+| `rmbench_ext5.py` | Layer 5 (round 5): covariate and regime statistics, `gp_ml` / `rbf_spline` baselines, planted-signal control, training-scale experiment, `rk_gcn2`, and (v4 block, appended by the round-5 notebook) the pointwise prior `rk_prior` with its CV gate |
+| `rmbench_ext6.py` | Layer 6 (round 6, adds only): nonlinear within-map comparators, globally scaled plant with generated covariates, `rk_prior6`, learnability-gap D0, fresh-layout seed ledger, plan freeze, executor |
 | `radiomap_ext_real_crosslayout.ipynb` | Round 1 (confirmatory design, run 2026-10-11) |
 | `radiomap_ext_conf2.ipynb` | Round 2 (pre-specified replication, run 2026-10-12) |
 | `radiomap_ext_conf3_kriging_attention.ipynb` | Round 3 (meta-learned prior, side-aware kernel, ensembles, gradient boosting) |
 | `radiomap_ext_conf4_ablation.ipynb` | Round 4 (KGNN ablation). Section 2 writes `rmbench_ablate.py` (`%%writefile`); the notebook also contains the former `run_ablation.py` as cells |
+| `radiomap_ext5_regime_scale.ipynb` | Round 5 (v4 shown here: positive control, frozen plan, dose-response on fresh layouts). It truncates and re-appends the v4 block of `rmbench_ext5.py`, so re-running is safe |
+| `radiomap_ext6_learnability.ipynb` | Round 6 (not yet run): D0 learnability gap, Stage 1 control, frozen plan, Stage 2 on new fresh layouts |
 | `rmbench_ablate.py` | Ablation layer: switchable KGNN fit (`polar`, `freeze`, `tau_zero`, `step0`) and the `kgnn_abl` dispatcher. Adds only; `rmbench_core/nn/ext/ext2/ext3` are untouched |
 | `run_ablation.py` | Same ablation driver as the notebook, as a command line (`smoke`, `run`, `report`) |
 | `readme_figures.py` | Regenerates every figure in this README into `figures/` from numbers transcribed from the saved notebook outputs (nothing is re-estimated) |
 
-The layers import each other (`ext3` imports `ext2`, which imports `ext`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
+The layers import each other (`ext3` imports `ext2`, which imports `ext`; `ext6` imports `ext5`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
 
 ## Methods
 
@@ -91,6 +104,11 @@ All methods predict the **same residual** after a shared trend fitted on the tra
 | `kgnn_prior`, `kgnn_prior_sk`, `kgnn_priorft` | KGNN whose covariance parameters come from a **meta-learned prior** fitted on other layouts and applied zero-shot. `_sk` uses a side-aware kernel; `_priorft` fine-tunes the prior on the target labels |
 | `ens_geo`, `ens_side`, `ens_sk` | Ensembles. `ens_side` = `kgnn_side` + `rk_side`; `ens_sk` = `kgnn_prior_sk` + `rk_side`. `ens_geo` combines the label-aware geometric models (composition: see the round-3 notebook) |
 | `gb_geo` | Gradient boosting on coordinates and geometric features (no side information) |
+| `gp_ml`, `rbf_spline` | Extra classical baselines added in round 5: Gaussian process with marginal-likelihood hyper-parameters, and an RBF-spline interpolator. (`coord_mlp`, `np_prior`, `rk_gcn` are also in `rmbench_ext5.py`; see the file) |
+| `rk_gcn2`, `rk_gcn2_s0` | Round 5, v3: the exact `rk_side` prediction plus a learned correction; a trained checkpoint replaces step 0 only if paired validation loss improves. `_s0` returns `rk_side` itself |
+| `rk_prior_K*`, `rk_prior_K*_ng` | Round 5, v4: a pointwise MLP prior pre-trained on fully observed **source** layouts (inputs = model features, no coordinates, no labels of the target map); `rk_side` is applied to `res − prior(X)` and the prior is added back. The gated arm picks prior vs plain `rk_side` by 5-fold CV inside the labelled set (accept only if paired z > 2.5 and relative MSE gain > 1%); `_ng` is ungated. `K` = number of source layouts |
+| `rk_onehot`, `rk_spline`, `rk_gbm` (+ `_g`) | Round 6: regression-kriging with a **nonlinear within-map** mean (quantile-bin one-hot + ridge, additive cubic splines + ridge, gradient boosting with CV-chosen size), IDW on the leftover residual. `_g` = gated against `rk_side` by the same rule as the prior |
+| `prior6_K*`, `prior6_K*_ng` | Round 6: the round-5 prior with inputs = geometry plus **globally scaled** covariates |
 | `xfer_*`, `xferft_*`, `within_*` | GNN pre-trained on **other** layouts and applied zero-shot / with 30 fine-tune steps, versus pre-trained on the same layout (but different floors) as control |
 
 ### Mechanisms added in the extension rounds
@@ -307,6 +325,45 @@ RMSE (dB, UJI random): IDW 9.070 / 7.606 / 6.825, untrained polar kriging 8.826 
 
 **Diagnostic caveat.** In `abl_fig3_share_left_step0.png` about 70% of `abl_full` fits at 20 and 60 labels left step 0 (the validation-selected checkpoint was a trained one), so learning did move the parameters; the held-out gain was still about zero. Bars at 5 and 10 labels are empty, which is probably an artifact of an empty validation split at so few labels (`best_ep` stays 0); do not cite that figure for 5 and 10 labels until `_split_val` is checked.
 
+### Round 5: when can learning across layouts help? Planted-signal control (v4, wall simulator)
+
+**Why.** Rounds 1–4 found no case where a learned model beat the classical comparators by more than a few percent. Before concluding that learning cannot help, the pipeline needs a control in which it provably could. Round 5 plants `y += amp · std(y) · f(side covariates)` with the same nonlinear `f` on every map (`amp` = 0, 0.1, 0.2, 0.3, 0.5), and asks whether a learner pre-trained on other layouts recovers it. v3 (residual-GCN arms `rk_gcn2`) **failed** this control: the best CI lower bound over arms and densities was 0.009 (%, against a 2% margin), and `rk_gcn2` accepted its trained checkpoint in 0–2.5% of fits. v4 replaced the message-passing correction by the pointwise prior described under Methods. <!-- TODO: add the v1/v2 results (regime map, extra baselines, strawman diagnostics, training-scale experiment) and the v3 amendment details from the round-5 notebook outputs and prereg_ext5_amend_v3.json; they were not available when this README was updated. -->
+
+**Data and design.** 256 source layouts (K = 16 or 64 used), 8 validation layouts, 64 development evaluation units (seed 11) and **64 fresh evaluation units** (seed 21, cache `cache_scale_fresh`, salt `scale5fresh`), 3 000 points per map, densities 100 / 300 / 1000 labels, one replicate, 300 test points. Comparators: `idw`, `rk_side`, `krig_global`, `kgnn`, `gp_ml`. The v4 plan was frozen before Stage 2 (sha256 `c47de96e…`, `results_ext5/prereg_ext5_amend_v4.json`); margin 2%, layout-cluster bootstrap, gate z > 2.5 and relative gain > 1%.
+
+**Stage 1 (development layouts, amplitude 0.3).** The positive control is reported as PASSED, but only through the **ungated** arms: `prior_K16_ng` and `prior_K64_ng` cleared the margin against all five comparators at 100 and 300 labels (worst CI lower bound 2.0–2.6%, mean gain over the strongest comparator 3.3–4.3%). No gated arm cleared it (CI lower bounds 0.2–1.3%). The gate accepted the prior in 11–52% of fits, more often at higher density. Pre-training validation R² on held-out source layouts was +0.49 (K = 16, amplitude 0.3) and +0.60 / +0.62 at amplitude 0 (K = 16 / 64); i.e. the prior learns pointwise structure of the simulator even when nothing is planted, and the gain over `rk_side` in that case is still 0.0–0.04%.
+
+**D0 failed.** The pre-registered recoverability diagnostic gave a median corr(prior, f) of **−0.19** (per-unit range −0.59 to +0.29) and a linear R² of `f` on the model inputs of **0.73**. `f` was meant to have ~0 linear part. The planted covariates were z-scored per map, so on every map `f` was a different function of the model inputs, and the pipeline had still passed Stage 1. Treat the positive control as informative about the gate, not as clean evidence that the prior recovers `f`. This is the reason for round 6.
+
+**Stage 2 (fresh layouts, run once).** Mean gain (%) of the gated prior over the *strongest* of the five comparators, by planted amplitude:
+
+| K | labels | amp 0 | 0.1 | 0.2 | 0.3 | 0.5 |
+|---|---|---|---|---|---|---|
+| 16 | 100 | 0.03 | 0.02 | 0.42 | 2.22 | 6.16 |
+| 16 | 300 | 0.00 | −0.02 | 0.47 | 2.71 | 8.09 |
+| 16 | 1000 | 0.00 | 0.01 | 0.77 | 2.45 | 7.21 |
+| 64 | 100 | 0.04 | 0.09 | 0.23 | 1.60 | 7.96 |
+| 64 | 300 | 0.00 | −0.04 | 0.68 | 2.83 | 8.61 |
+| 64 | 1000 | 0.00 | 0.04 | 0.93 | 2.98 | 7.64 |
+
+The gated prior beats every comparator by more than the 2% margin (CI lower bound above it) in **6 of 6 cells at amplitude 0.5** (lower bounds 4.4–5.3%) and in no cell at amplitude ≤ 0.3, although the mean gain at 0.3 is 1.6–3.0%. The smallest winning amplitude is therefore the top of the grid; the crossover lies somewhere between 0.3 and 0.5 and the grid is too coarse to locate it. The gate accepted the prior in 0–3% of fits at amplitude 0 and in 38–69% at amplitude 0.5. **False-positive control (amplitude 0):** the gated prior is equivalent to `rk_side` in all 6 cells (mean gain 0.00–0.04%); the ungated arms lose 0.7–0.9% at 300 and 1000 labels, still inside the margin. K = 16 vs K = 64 makes little difference.
+
+**How to read this.** It is a positive result for the *idea* in a simulator with a strong planted signal, with a gate that does no harm when the signal is absent. It is **not** evidence for real radio maps, and not evidence for GNNs: the winning learner is a pointwise MLP, and the v3 message-passing arms failed the same control. The comparator set contained no nonlinear within-map regressor, so part of the gain may be available within a single map. Round 6 tests exactly that.
+
+### Round 6: learnability gap (written, **not yet run**)
+
+No results exist for this round. What it changes, in the order of the plan:
+
+1. **Within-map nonlinear comparators** `rk_onehot`, `rk_spline`, `rk_gbm`, each ungated and gated (`_g`), join the comparator set.
+2. **Global raw plant.** `f` is computed from raw covariates scaled by fixed constants fitted once on source maps, not per-map z-scores, and the prior sees the same globally scaled inputs.
+3. **Higher-dimensional side information.** 24 generated covariates per map (a mix of a smooth random field and iid noise, share `rho` = 0.3) are appended to the simulator's side information; `f` is a sum of 32 products of two ridge functions of three random coordinates each (no linear part). The intent is that ~100 labels in one map cannot learn it, while many layouts can.
+4. **D0 = learnability gap.** Median corr(prior, f) on held-out maps must be ≥ 0.5, and the gap to the best within-map comparator at 100 labels must be ≥ 0.25 (both thresholds fixed a priori, not derived from data). The same table at 1000 labels shows whether within-map learning catches up with more labels. Stage 2 is blocked if D0 fails.
+5. **New fresh layouts** (pool seed 31, simulator seed 9). A seed ledger (`seed_ledger.json`) lists the burned seeds (pool 11, 12, 21; simulator 5, 7) and refuses to build layouts from them; the new seeds are burned after Stage 2 completes. The plan is hashed (`prereg_ext6.json`) before the layouts are built.
+
+**Status of the code.** `rmbench_ext6.py` compiles, and its numpy/sklearn parts were exercised on stub maps only: the planted `f` had linear R² ≈ 0.05; the three within-map comparators reached corr between −0.04 and 0.07 with 100 and with 1000 labels; and a cross-map MLP reached held-out corr 0.75 / 0.84 / 0.94 with 4 / 16 / 64 source maps. Calls into the real `rmbench_core / ext / ext2` were not executed; run `RM_MODE=smoke` first. Stub numbers say nothing about the real simulator.
+
+**Claim rules (frozen in the notebook).** Positive: at some amplitude > 0 and K, the gated prior beats every comparator, including the three nonlinear within-map ones, with a layout-cluster CI lower bound above 2% on the fresh layouts. False-positive control: at amplitude 0 the gated prior is equivalent to `rk_side`. All of it is semi-synthetic, and the generated covariates must be named as generated.
+
 ## Limitations
 
 - **Hypotheses were chosen after seeing round 1.** Round 2 has fresh data, not fresh hypotheses, and the plan says so. The trend policy, outage gating and dataset choices were also designed after exploratory output (listed in `prereg.json`).
@@ -322,6 +379,9 @@ RMSE (dB, UJI random): IDW 9.070 / 7.606 / 6.825, untrained polar kriging 8.826 
 - **Round-3 hypotheses were also chosen after earlier output,** and all its primaries are NOT SUPPORTED. Round-3 gains over IDW and kriging in Figure 1 and the tables above are descriptive. Do not relabel the primaries by restricting to densities or splits that look best.
 - **Six buildings** remain the weakest point for real-data inference; adding buildings (Tampere, UTSIndoorLoc, MallIndoorLoc) is the most valuable next step.
 - **Round-4 limits.** The data are the round-3 units (fresh test salt and replicate ids, not fresh buildings). The training-free-kriging claim comes from secondary contrasts; only the learning-vs-untrained contrast was the primary, and it was not established. Do not describe round 4 as showing that learning helps, or relabel the primary using the cells that look best (random split at 20 labels, +1.0%, Holm p = 0.19).
+- **Round-5 limits.** The planted signal is artificial and its strength (amplitude) is a free knob; the only winning amplitude is the top of the grid. The D0 diagnostic failed (corr −0.19, linear R² 0.73), Stage 1 passed through the ungated arms only, and the comparator set had no nonlinear within-map model. The round-5 fresh layouts (seed 21) are no longer untouched. The v3 failure and the v4 design were chosen after seeing earlier output (listed in the prereg files).
+- **Round 6 has no results.** Do not quote any number for it. The D0 thresholds are a priori choices, not derived from data, and the generated covariates are not real side information.
+- **No real-data evidence for cross-layout learning of side-information structure.** All positive transfer results are simulated; on real Wi-Fi, pre-training helped only at 5 labels (rounds 1 and 3).
 - **Exploratory outputs.** `run_ext.py` runs and the trend-repair table are exploratory. Only contrasts frozen in a pre-registration file are labelled confirmatory.
 
 ## Reproducibility
@@ -330,5 +390,7 @@ RMSE (dB, UJI random): IDW 9.070 / 7.606 / 6.825, untrained polar kriging 8.826 
 - Pre-registration files (`results_ext2/prereg.json`, written 2026-10-11, sha256 `97162105…`; `results_conf2/prereg_conf2.json`, written 2026-10-12, sha256 `e8a2305d…`, which also embeds the round-1 hash) should be committed to git before the confirmatory cells are run.
 - Figures: `python readme_figures.py` writes `figures/*.png`. All numbers in it are transcribed from the saved notebook outputs, and the round-3 relative gains are computed from the parent-level mean-RMSE tables, not from paired tests.
 - Round 4 uses test salt `abl4`, replicate ids 700+, plan in `results_ablation/prereg_ablation.json`; smoke runs write to `ablation_smoke/` and never to `figures/`.
+- Round 5 uses development layouts from pool seed 11 (simulator seed 5, salt `scale5`), extra source layouts from seed 12 (salt `scale5x`), and fresh layouts from pool seed 21 (simulator seed 7, salt `scale5fresh`); plan `results_ext5/prereg_ext5_amend_v4.json`, sha256 `c47de96e…`, committed before Stage 2.
+- Round 6 uses pool seed 31 and simulator seed 9 (salt `scale6fresh`), ledger `results_ext5/seed_ledger.json`, plan `results_ext5/prereg_ext6.json`; unit caches under `results_ext5` are shared with round 5. Priors are stored under `results_ext5/v6/priors` and see source maps only.
 - Results come from the saved notebook outputs and the `confirmatory_master*.csv` / `claims_conf2.csv` files they write.
 - Tuned hyper-parameters in the main sweep: `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features. `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features. `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3. Round 2 defaults: Kmax 12, `s2_init` 0.3, 150 steps.

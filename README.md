@@ -14,6 +14,14 @@ The work ran in seven stages (round 6 is written but **not yet run**), and the o
 | **Round 5** | `radiomap_ext5_regime_scale.ipynb` | Wall simulator (256 source, 64 development and 64 fresh evaluation units) with a **planted** side-information signal | When can learning across layouts help at all? Regime map, extra baselines, training-scale experiment, and (v4) a pre-trained pointwise prior with a cross-validated do-no-harm gate, dose-response over planted amplitude |
 | **Round 6** (written, **not yet run**) | `radiomap_ext6_learnability.ipynb` | Same wall simulator, new fresh layouts (seeds 31 / 9), 24 generated covariates | Repeat the round-5 control where a single map provably cannot learn the signal: nonlinear within-map comparators, globally scaled plant, learnability-gap diagnostic (D0) |
 
+## Current interpretation (updated 2026-10-17)
+
+**Bottom line: there is no established positive GNN result on real radio-map data.** The KGNN's small edge over IDW and global kriging is reproducible in several settings, but Round 4's ablation indicates that the advantage comes from the fixed local-kriging structure and nugget, not from learning its parameters. The appropriate description is *local kriging with a few learned parameters*, not a demonstrated GNN learning gain.
+
+The strongest positive result beyond this is the Round-6 semi-synthetic control: a pre-trained pointwise MLP prior helps when a shared signal is deliberately planted into simulated maps. This is not message passing, and it does not establish that the same structure exists or is learnable on real radio maps. The no-harm gate also did **not** pass its stated control rule as written: small gains at 100 labels (about 2%) caused the rule to return `False`; this was not evidence of harm, but it means the pre-specified control criterion failed.
+
+Use the saved raw outputs to verify every number before quoting it. Some long tables and notebook outputs were truncated in the review, and the `radiogat` and 6G sweep notebooks were only skimmed. Do not treat a result as confirmed merely because its experiment script defines the method.
+
 ## Summary of findings
 
 1. **The KGNN advantage is real but small, and it replicates.** KGNN beats IDW in nearly every cell of every dataset and round (+1.3% to +7%, 0.1–0.4 dB on real Wi-Fi, 0.003–0.008 dB on DeepMIMO; Figure 1). In round 3 the sign holds in all 7 real-Wi-Fi random-split cells, but those gains are descriptive (no paired test was run). Against a fitted global kriging it wins in most cells, by 8% at 5 labels on real Wi-Fi but only 1–3% at 10–20 labels.
@@ -29,7 +37,7 @@ The work ran in seven stages (round 6 is written but **not yet run**), and the o
 9. **Where the edge comes from: the local-kriging structure, not training (round 4).** A local kriging of the K=12 nearest labels with a fixed default covariance (exponential in space, polar term, nugget; **no training at all**) already carries the gain. On UJI (random split) it beats IDW by +2.7% / +2.8% / −0.2% and global kriging by +5.8% / +2.2% / −1.1% at 5 / 10 / 20 labels (Holm-significant at 5 labels vs global kriging and at 10 labels vs IDW). Learning the six covariance parameters on top adds nothing measurable (pooled primary |gain| ≤ 1.1%, ≤ 0.1 dB; verdict NOT ESTABLISHED). The practical consequence is positive: a **training-free local kriging with a nugget** is the cheap, robust method to use at 5–10 labels, and it needs no GNN.
 
 10. **Cross-layout learning can win, but only when a planted signal is strong (round 5, v4, semi-synthetic).** A pointwise prior pre-trained on other layouts, followed by `rk_side` on the remainder and gated by 5-fold cross-validation, beats all five comparators (`idw`, `rk_side`, `krig_global`, `kgnn`, `gp_ml`) on fresh layouts in 6 of 6 (K, density) cells at planted amplitude 0.5 (CI lower bounds 4.4–5.3%, mean gain 7.2–8.6%), and in none at amplitude ≤ 0.3 (mean gain 0.0–3.0%, CI lower bound below the 2% margin). With no planted signal (amplitude 0) the gate returns `rk_side` (gain 0.00–0.04%, equivalent in all 6 cells). This is a simulator with an artificial signal; it says when transfer *can* help, not that it does on real maps.
-11. **The round-5 positive control was not clean, which is why round 6 exists.** The pre-registered D0 diagnostic failed on the development layouts (median corr(prior, f) = −0.19; linear R² of `f` on the model inputs 0.73 although `f` was meant to be nonlinear), so the planted `f` was largely linear in per-map standardised inputs and partly learnable within one map. Round 6 changes the plant and adds within-map nonlinear comparators; it has **no results yet**.
+11. **The round-5 control was confounded, and Round 6 now provides a semi-synthetic positive control.** Round 5's D0 diagnostic failed (median corr(prior, f) = −0.19; linear R² = 0.73), so it was not clean evidence that the prior recovered a signal that could not be learned within one map. Round 6 tests a revised plant and nonlinear within-map comparators. Its positive result is limited to planted structure and a pointwise MLP prior; the stated no-harm gate control returned `False` at 100 labels because of small gains, not because the gate caused harm.
 
 Absolute differences are small compared with the noise of the targets, so always read percentages next to dB values. See [Limitations](#limitations).
 
@@ -41,17 +49,17 @@ Absolute differences are small compared with the noise of the targets, so always
 
 | Claim | Status |
 |---|---|
-| KGNN gives a small, consistent RMSE gain over IDW (about 1–7%) | Replicated across 4 datasets and 3 rounds; Holm-significant in rounds 1–2 at most cells |
+| KGNN gives a small RMSE gain over IDW | Observed in several datasets and rounds, but Round-4 ablation attributes the edge primarily to fixed local-kriging structure; do not claim a demonstrated learning gain |
 | KGNN beats fitted global kriging at 5–10 labels on real Wi-Fi | Consistent in 6 of 6 buildings (round 2); the frozen claim rule is **not met** (one cell open) |
 | GCN/GAT beat IDW | **No**, in any family, split or density |
 | Side information via a GNN beats ridge + IDW (`rk_side`) | **No** (practically equivalent at best) |
 | A meta-learned prior helps | Only at 5 labels on real Wi-Fi and on the wall simulator; hurts at higher density on real data |
-| Learning the KGNN kernel beats the same kernel untrained (round 4 primary) | **No / not established.** Pooled real Wi-Fi, 6 cells: −1.1% to +1.0%, none Holm-significant (frozen rule: NOT ESTABLISHED) |
+| Learning the KGNN kernel beats the same kernel untrained (round 4 primary) | **NOT ESTABLISHED.** Pooled real Wi-Fi, 6 cells: −1.1% to +1.0%; no Holm-significant result |
 | Training-free local kriging (fixed default covariance + nugget) beats IDW and global kriging at 5–10 labels on real Wi-Fi | **Supported descriptively and in part by Holm-significant secondary contrasts** (UJI random: 2 of 6 cells significant, rest same sign or inconclusive). Not a pre-registered primary |
 | The nugget matters | Yes: freezing it at ~0 costs +4.1% RMSE at 20 labels (UJI random, Holm-significant); learning it vs the 0.2 default adds nothing |
-| A pre-trained cross-layout prior beats classical regression-kriging when a strong shared signal is planted (round 5, v4) | **Supported on fresh simulated layouts at amplitude 0.5 only** (6 of 6 cells, CI lower bound > 2%); not at amplitude ≤ 0.3. Semi-synthetic; the comparator set had no nonlinear within-map model |
-| The CV gate does no harm without shared structure (round 5, v4, amplitude 0) | Yes: equivalent to `rk_side` in all 6 cells (the ungated prior is 0.7–0.9% worse at 300 and 1000 labels, still inside the margin) |
-| A cross-layout prior helps on real radio maps | **Not tested.** No real dataset with shared side-information structure has been evaluated |
+| A pre-trained cross-layout prior beats classical regression-kriging when a shared signal is planted | **Semi-synthetic only.** Round 6 reports a positive result against nonlinear within-map comparators at planted amplitude around 0.2–0.3; verify exact values in raw outputs. The no-harm control failed its written rule at 100 labels |
+| The CV gate does no harm without shared structure | **Not established under the Round-6 written rule.** The control returned `False` because of small gains at 100 labels (about +2%); this was not reported as harm |
+| A cross-layout prior helps on real radio maps | **Not established.** No positive real-data result demonstrates this shared side-information structure |
 | Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
 
 ![Real Wi-Fi RMSE versus labels](figures/fig2_real_wifi_rmse_vs_labels.png)
@@ -350,19 +358,15 @@ The gated prior beats every comparator by more than the 2% margin (CI lower boun
 
 **How to read this.** It is a positive result for the *idea* in a simulator with a strong planted signal, with a gate that does no harm when the signal is absent. It is **not** evidence for real radio maps, and not evidence for GNNs: the winning learner is a pointwise MLP, and the v3 message-passing arms failed the same control. The comparator set contained no nonlinear within-map regressor, so part of the gain may be available within a single map. Round 6 tests exactly that.
 
-### Round 6: learnability gap (written, **not yet run**)
+### Round 6: learnability gap (results reviewed 2026-10-17)
 
-No results exist for this round. What it changes, in the order of the plan:
+Round 6 extends the planted-signal experiment with globally scaled covariates, 24 generated covariates, and nonlinear within-map comparators (`rk_onehot`, `rk_spline`, `rk_gbm`). The key question is whether a cross-layout prior helps beyond what can be learned from labels on one map.
 
-1. **Within-map nonlinear comparators** `rk_onehot`, `rk_spline`, `rk_gbm`, each ungated and gated (`_g`), join the comparator set.
-2. **Global raw plant.** `f` is computed from raw covariates scaled by fixed constants fitted once on source maps, not per-map z-scores, and the prior sees the same globally scaled inputs.
-3. **Higher-dimensional side information.** 24 generated covariates per map (a mix of a smooth random field and iid noise, share `rho` = 0.3) are appended to the simulator's side information; `f` is a sum of 32 products of two ridge functions of three random coordinates each (no linear part). The intent is that ~100 labels in one map cannot learn it, while many layouts can.
-4. **D0 = learnability gap.** Median corr(prior, f) on held-out maps must be ≥ 0.5, and the gap to the best within-map comparator at 100 labels must be ≥ 0.25 (both thresholds fixed a priori, not derived from data). The same table at 1000 labels shows whether within-map learning catches up with more labels. Stage 2 is blocked if D0 fails.
-5. **New fresh layouts** (pool seed 31, simulator seed 9). A seed ledger (`seed_ledger.json`) lists the burned seeds (pool 11, 12, 21; simulator 5, 7) and refuses to build layouts from them; the new seeds are burned after Stage 2 completes. The plan is hashed (`prereg_ext6.json`) before the layouts are built.
+**Result: positive only on semi-synthetic data.** The gated, pre-trained pointwise MLP prior beats every comparator, including nonlinear regression-kriging, by approximately **12–33%** when the planted amplitude is around **0.2–0.3**. This is evidence that cross-layout learning can help under the deliberately constructed regime, not evidence of a real-data GNN gain. The model is an MLP prior, not a message-passing GNN.
 
-**Status of the code.** `rmbench_ext6.py` compiles, and its numpy/sklearn parts were exercised on stub maps only: the planted `f` had linear R² ≈ 0.05; the three within-map comparators reached corr between −0.04 and 0.07 with 100 and with 1000 labels; and a cross-map MLP reached held-out corr 0.75 / 0.84 / 0.94 with 4 / 16 / 64 source maps. Calls into the real `rmbench_core / ext / ext2` were not executed; run `RM_MODE=smoke` first. Stub numbers say nothing about the real simulator.
+**No-harm control did not pass its written rule.** The control `gate does no harm at amp = 0` printed `False`. The reported cause was small gains at 100 labels (about +2%); this was not harm, but the frozen criterion was not satisfied. Report the failed rule as written rather than changing it after seeing the result.
 
-**Claim rules (frozen in the notebook).** Positive: at some amplitude > 0 and K, the gated prior beats every comparator, including the three nonlinear within-map ones, with a layout-cluster CI lower bound above 2% on the fresh layouts. False-positive control: at amplitude 0 the gated prior is equivalent to `rk_side`. All of it is semi-synthetic, and the generated covariates must be named as generated.
+**Interpretation.** The semi-synthetic result is useful as a controlled demonstration that shared structure can be exploited when deliberately planted. It does not show that this structure occurs in real radio maps, nor that a single map cannot learn it without the prior. Keep real-data claims separate from this control.
 
 ## Limitations
 

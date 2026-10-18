@@ -1,7 +1,7 @@
 """inspect_dm_cities.py -- run next to rmbench_core.py. Downloads a FEW candidate scenarios and prints, per scenario, what is needed to
 decide whether they can form an independent-layout pool. It reads labels' summary statistics only; it fits and compares NOTHING.
 
-  python inspect_dm_cities.py                      # default 6 scenarios (see CANDIDATES)
+  python inspect_dm_cities.py                      # default 6 scenarios (see CANDIDATES); needs rmbench_dmfix.py next to it
   python inspect_dm_cities.py city_2_chicago_3p5   # or name your own
 
 Output: one line per scenario + one line per transmitter, then a CSV (dm_inspect.csv). Send me the printed text (or the CSV).
@@ -11,6 +11,7 @@ import os, sys, time, json
 import numpy as np
 sys.path.insert(0, os.getcwd())
 import rmbench_core as rc
+import rmbench_dmfix          # fixes the carrier-frequency parser (see that file); must come before any load
 import deepmimo as dm
 
 CANDIDATES = ["city_0_newyork_3p5", "city_1_losangeles_3p5", "city_21_taito_city_3p5", "city_22_rome_3p5",
@@ -39,7 +40,13 @@ def main(slugs):
             raws = rc.load_deepmimo_units(s, cfg)
             for r in raws:
                 u = rc.preprocess_unit(r, cfg)
-                if u is None: print(f"  tx {r['tx']}: dropped (below noise floor / too few points)"); continue
+                if u is None:                                    # say WHY (same arithmetic as rc.preprocess_unit)
+                    pos3, tx3 = np.asarray(r["pos3"], float), np.asarray(r["tx3"], float).reshape(-1)[:3]
+                    d = np.linalg.norm(pos3 - tx3, axis=1); p = rc.sum_path_power_dbm(r["power_paths_dbm"]); los = (np.asarray(r["los"]) == 1).astype(float)
+                    off = rc.calibrate_power_offset(d, p, los, r["freq_ghz"], cfg["ptx_dbm"]); y = p + off
+                    keep = int((np.isfinite(y) & (y > rc.noise_floor_dbm(cfg))).sum())
+                    print(f"  tx {r['tx']}: DROPPED  freq={r['freq_ghz']} n={len(d)} with_any_path={int(np.isfinite(p).sum())} los={int(los.sum())} "
+                          f"offset={off:.1f} dB  above_noise={keep} (need {cfg['min_unit_points']})"); continue
                 row = dict(scenario=s, tx=r["tx"], freq_ghz=r["freq_ghz"], n_pts=len(u["y"]), los_frac=float(np.mean(u["los"])), y_std=float(np.std(u["y"])),
                            x_span=float(np.ptp(u["pos"][:, 0])), y_span=float(np.ptp(u["pos"][:, 1])), d_max=float(np.max(u["d"])))
                 rows.append(row); print("  ", json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in row.items()}))

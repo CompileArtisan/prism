@@ -29,13 +29,13 @@ OUT = "results_city"
 VERDICT = dict(n_ref=100, min_gain_pct=2.0, min_frac_pos=0.6, min_full_minus_geo=1.0)
 
 def pool(manifest=cc.MANIFEST, cache=None):
-    """{role: [layout = [(unit name, cache dir), ...], ...]} for source / val / dev / confirm, layouts in numeric city order."""
+    """{role: [layout = [(unit name, cache dir), ...], ...]} for source / val / dev / confirm / confirm2, layouts in numeric city order."""
     cache = cache or CFG["cache_dir"]; m = pd.read_csv(manifest); role = dict(zip(m.slug, m.role)); by = {}
     for f in sorted(glob.glob(os.path.join(cache, "units", "*.npz"))):
         name = os.path.basename(f)[:-4].replace("__", "|"); slug = name.split("|")[1]
-        if role.get(slug) in ("source", "val", "dev", "confirm"): by.setdefault(slug, []).append(name)
+        if role.get(slug) in ("source", "val", "dev", "confirm", "confirm2"): by.setdefault(slug, []).append(name)
     key = lambda s: (cc.parse_slug(s)[0] if s.startswith("city_") else 10 ** 6, s)
-    out = {r: [] for r in ("source", "val", "dev", "confirm")}
+    out = {r: [] for r in ("source", "val", "dev", "confirm", "confirm2")}
     for slug in sorted(by, key=key): out[role[slug]].append([(n, cache) for n in sorted(by[slug])])
     return out
 

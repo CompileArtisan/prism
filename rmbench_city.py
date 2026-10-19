@@ -156,16 +156,28 @@ def eligible_row(r):
     ik, inp = r.get("inside_kept", float("nan")), r.get("inside_nopath", float("nan"))
     return bool(r["n_units"] >= 1 and r["n_buildings"] >= 10 and ik == ik and inp == inp and ik <= 0.10 and (inp - ik) >= 0.25)
 
+def build_with_retry(slug, cfg=CITY_CFG, waits=(45, 120, 300), pause=4.0):
+    """build_city, retrying when the download was refused (HTTP 429 'Too Many Requests' shows up as a missing scenario folder). Pauses `pause` s before every
+    attempt that has to download, so a long build does not trip the server's rate limit."""
+    import deepmimo as dm
+    for i, w in enumerate((0,) + tuple(waits)):
+        if w: print(f"  [{slug}] download refused, waiting {w}s (attempt {i + 1}/{len(waits) + 1})"); time.sleep(w)
+        try:
+            if not os.path.isdir(os.path.join(dm.get_scenarios_dir(), slug)): time.sleep(pause)
+            return build_city(slug, cfg)
+        except Exception as e:
+            if i == len(waits) or ("not found" not in repr(e).lower() and "429" not in repr(e)): raise
+
 def cmd_build(first=None, cfg=CITY_CFG):
     import pandas as pd
     todo = CANDIDATES if first is None else [s for _, ss in groups(CANDIDATES)[:first] for s in ss]
     allrows = pd.read_csv(MANIFEST).to_dict("records") if os.path.exists(MANIFEST) else []
-    rows = [r for r in allrows if r.get("feat_version") == FEAT_VERSION]; done = {r["slug"] for r in rows}
-    if len(allrows) != len(rows): print(f"[city] {len(allrows) - len(rows)} manifest rows come from an older feature version and will be rebuilt")
+    rows = [r for r in allrows if r.get("feat_version") == FEAT_VERSION and not (isinstance(r.get("error"), str) and r["error"])]; done = {r["slug"] for r in rows}   # error rows are retried
+    if len(allrows) != len(rows): print(f"[city] {len(allrows) - len(rows)} manifest rows come from an older feature version, or failed earlier, and will be (re)built")
     for s in todo:
         if s in done: continue
         t0 = time.time()
-        try: _, info = build_city(s, cfg)
+        try: _, info = build_with_retry(s, cfg)
         except Exception as e: info = dict(slug=s, n_units=0, n_dropped_units=-1, n_buildings=0, inside_kept=float("nan"), inside_nopath=float("nan"), error=repr(e)[:160])
         info["eligible"] = eligible_row(info); info["feat_version"] = FEAT_VERSION; rows.append(info); pd.DataFrame(rows).to_csv(MANIFEST, index=False)
         print(f"{s}: units={info['n_units']} dropped={info['n_dropped_units']} bldgs={info['n_buildings']} on_bldg(signal)={info['inside_kept']:.2f} on_bldg(no path)={info['inside_nopath']:.2f} "
@@ -173,14 +185,22 @@ def cmd_build(first=None, cfg=CITY_CFG):
     df = pd.read_csv(MANIFEST); print(f"\n{int(df.eligible.sum())}/{len(df)} eligible -> {MANIFEST}")
 
 def cmd_roles(freeze=False):
+    """Before the plan is frozen: roles from assign_roles(eligible). AFTER it is frozen: the frozen roles are read back and NEVER recomputed; a slug that
+    became eligible later (e.g. a download that was rate-limited the first time) gets role 'confirm2' = an extra fresh pool declared here, untouched by any
+    earlier analysis. Re-running `roles --freeze` after freezing never changes the plan."""
     import pandas as pd
-    df = pd.read_csv(MANIFEST); el = df[df.eligible].slug.tolist(); role = assign_roles(el)
+    df = pd.read_csv(MANIFEST); el = df[df.eligible].slug.tolist()
+    if os.path.exists(PLAN):
+        frozen = json.load(open(PLAN))["plan"]["roles"]; role = {s_: frozen.get(s_, "confirm2") for s_ in el}
+        print(f"plan already frozen ({json.load(open(PLAN))['sha256'][:16]}): {len(frozen)} roles kept, {sum(1 for s_ in el if s_ not in frozen)} newly eligible -> confirm2")
+        if freeze: print("(--freeze ignored: the plan is already frozen)")
+    else: role = assign_roles(el)
     df["role"] = df.slug.map(role).fillna("ineligible"); df.to_csv(MANIFEST, index=False)
     print(df.groupby("role").slug.agg(["size", lambda x: ", ".join(x.str.extract(r"city_(\d+)_")[0].head(12))]).to_string())
+    if os.path.exists(PLAN): return
     plan = dict(cfg={k: v for k, v in CITY_CFG.items() if k != "cache_dir"}, env_cols=ENV_COLS, roles=role, rule="p%8: 0-3 source, 4 val, 5 dev, 6-7 confirm; groups by alias")
     h = hashlib.sha256(json.dumps(plan, sort_keys=True, default=str).encode()).hexdigest()
     if freeze:
-        if os.path.exists(PLAN) and json.load(open(PLAN))["sha256"] != h: raise AssertionError("plan changed after freezing")
         os.makedirs(os.path.dirname(PLAN), exist_ok=True); json.dump(dict(sha256=h, plan=plan, frozen_at=time.strftime("%Y-%m-%d %H:%M:%S")), open(PLAN, "w"), indent=1)
         print("frozen", h[:16], "->", PLAN)
     else: print("(not frozen; add --freeze once you have read the table)", h[:16])

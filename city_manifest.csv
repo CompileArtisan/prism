@@ -81,21 +81,13 @@ city_78_newtaipei_3p5,1,0,56,0.0066533599467731,0.4755011135857461,True,raster-v
 city_79_parow_3p5,1,0,276,0.0182704019488428,0.4695044472681067,True,raster-v2,,source
 city_81_seoul_3p5,1,0,64,0.0033764772087788,0.3451043338683788,True,raster-v2,,source
 city_82_shibuya_3p5,1,0,426,0.4621621621621621,0.7486338797814208,False,raster-v2,,ineligible
-city_83_tempe_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_83_tempe_3p5'),ineligible
 city_84_baoding_3p5,3,0,2,0.0020467548379333,0.9958847736625516,False,raster-v2,,ineligible
 city_85_fuyang_3p5,2,1,3,0.0114756204782509,0.9943763507011816,False,raster-v2,,ineligible
 city_86_ankara_3p5,2,1,12,0.0090945452650743,0.9721253979388118,True,raster-v2,,val
 city_87_jinan_3p5,3,0,93,0.0249941946882423,0.8923172070689476,True,raster-v2,,dev
 city_88_tongshan_3p5,3,0,6,0.0184373917801569,0.975501113585746,False,raster-v2,,ineligible
+city_83_tempe_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_83_tempe_3p5'),ineligible
 city_89_nairobi_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_89_nairobi_3p5'),ineligible
 city_90_nanjing_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_90_nanjing_3p5'),ineligible
 city_91_xiangyang_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_91_xiangyang_3p5'),ineligible
 city_93_rangoon_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_93_rangoon_3p5'),ineligible
-city_94_monterrey_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_94_monterrey_3p5'),ineligible
-city_95_delhi_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_95_delhi_3p5'),ineligible
-city_96_osaka_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_96_osaka_3p5'),ineligible
-city_97_chennai_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_97_chennai_3p5'),ineligible
-city_98_guangzhou_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_98_guangzhou_3p5'),ineligible
-city_99_shanghai_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_99_shanghai_3p5'),ineligible
-city_101_jakarta_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_101_jakarta_3p5'),ineligible
-city_102_huanggang_3p5,0,-1,0,,,False,raster-v2,FileNotFoundError('Scenario folder not found: city_102_huanggang_3p5'),ineligible

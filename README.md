@@ -2,7 +2,7 @@
 
 A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and learned models (GCN, GAT, a kriging-initialised graph model called KGNN) that predict received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across independent parents (transmitters, building-floors or layouts, depending on the dataset).
 
-The work ran in eight stages plus two partial runs, and the older stages are never overwritten:
+The work ran in eight stages plus two partial runs, followed by three exploratory rounds on the city pool (Round 7, 7b and 8; val and dev cities only, no frozen plan), and the older stages are never overwritten:
 
 | Stage                                        | Notebook                                                 | Data                                                                                                                 | Purpose                                                                                                                                                                                                                   |
 |----------------------------------------------|----------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -14,13 +14,18 @@ The work ran in eight stages plus two partial runs, and the older stages are nev
 | **Round 5**                                  | `radiomap_ext5_regime_scale.ipynb`                       | Wall simulator (256 source, 64 development and 64 fresh evaluation units) with a **planted** side-information signal | When can learning across layouts help at all? Regime map, extra baselines, training-scale experiment, and (v4) a pre-trained pointwise prior with a cross-validated do-no-harm gate, dose-response over planted amplitude |
 | **Round 6** (**run**)                        | `radiomap_ext6_learnability.ipynb`                       | Same wall simulator, new fresh layouts (pool seed 31 / simulator seed 9), 24 generated covariates                    | Repeat the round-5 control where a single map provably cannot learn the signal: nonlinear within-map comparators, globally scaled plant, learnability-gap diagnostic (D0)                                                 |
 | **City study (M3)** (plan frozen 2026-10-19) | `rmbench_city.ipynb` (+ `rmbench_city.py`, `d0_city.py`) | DeepMIMO ray-traced **city** layouts (`city_*_3p5`, 53 eligible cities, 5 label-free map features)                   | Do GCN / GAT (with and without the map features) beat IDW, kriging and regression-kriging on independent city layouts? Pre-registered, confirmatory run on 10 held-out cities                                             |
+| **Round 7** (exploratory) | `rmbench_r7.ipynb` sections 1-8 (+ `rmbench_r7.py`) | City pool: 7 dev cities (12 units) and 6 val cities (10 units), 30 / 100 / 300 labels; confirm cities not used | Can a GCN that learns a cross-fitted, CV-gated correction on top of `rk_side` (kNN or feature-space graph over every grid cell) improve on it? |
+| **Round 7b** (exploratory) | `rmbench_r7.ipynb` section 10 | Same cities, plus building rasters for the 13 val + dev scenes | Obstruction-aware ("wall") graph: does it change the neighbours at all, and does it help? |
+| **Round 8** (exploratory) | `rmbench_r7.ipynb` section 11 + `rmbench_r8.py` | Same cities and rasters | Label-centric, obstruction-aware attention interpolator (`rattn`): messages go from the K nearest *labelled* points to each query instead of through a graph over every grid cell |
 | **UJI extension runs** (partial)             | `run_ext.py`                                             | UJIIndoorLoc, 15 / 30 / 60 labels, random and blocked, leave-one-building-out transfer                               | Real indoor cross-layout evidence for the M3 timeline. **Incomplete**: see the UJI section                                                                                                                                |
 
-## Current interpretation (updated 2026-10-20)
+## Current interpretation (updated 2026-10-21)
 
 **Bottom line: there is no established positive GNN result on real radio-map data, and the pre-declared positive GNN result of the city study is NO.** On the 10 frozen confirmation cities, neither a GCN nor a GAT with the five map features beats regression-kriging on the same features (`rk_side`) at any density; the GCN is significantly worse at 100 and 300 labels and the GAT at 100 labels. GNNs that see only geometry lose to IDW by 8-19% in every cell, significantly. What is positive and robust is the **side information**, not the learned interpolator: the five map features give a 15-28% RMSE reduction to the GNNs and about 15-22% to a plain ridge + IDW model over IDW. Topology (kNN vs Delaunay) and architecture (GCN vs GAT) make no detectable difference.
 
 Earlier rounds point the same way. The KGNN's small edge over IDW and global kriging is reproducible, but Round 4's ablation shows it comes from the fixed local-kriging structure and nugget, not from learned parameters. The strongest positive learning result is semi-synthetic: in Round 6 a pre-trained **pointwise MLP prior** (not message passing) beats every comparator, including nonlinear within-map regression-kriging, once a shared signal of amplitude >= 0.2 is deliberately planted into simulated maps. The Round-6 false-positive control did **not** pass its written rule as stated (see Round 6). The city-pool transfer gate (D0 on real ray-traced cities) **failed**, so cross-city pre-training was not run at confirmatory scale.
+
+**Rounds 7-8 (exploratory; val and dev cities only; no frozen plan; confirm cities untouched by construction of the notebook cells) do not change the bottom line.** A GCN that learns a gated correction on top of `rk_side` adds nothing (the gate stays closed in 0-5% of runs; ungated it is worse at 30 and 100 labels), and an obstruction-aware graph is 90-98% the same graph as kNN and does not help. The one lead is Round 8's `rattn`, an attention interpolator over the nearest labelled points with the 5 map features inside its kernel: +3.2% / +6.2% over `rk_side` at 100 / 300 labels on the 7 dev cities (positive in all 7), but +0.03% on the 6 val cities at 100 labels, and it is not a GCN/GAT (see Round 8). It is a hypothesis to confirm, not a result.
 
 Use the saved raw outputs to verify every number before quoting it. Some long tables and notebook outputs were truncated in the review, and the `radiogat` and 6G sweep notebooks were only skimmed. Do not treat a result as confirmed merely because its experiment script defines the method.
 
@@ -44,6 +49,10 @@ Use the saved raw outputs to verify every number before quoting it. Some long ta
 13. **The map features are what help.** Adding the 5 features to a GNN improves it by +15% to +28% (0.5-1.5 dB; all 6 contrasts Holm-significant at the smallest attainable p). `rk_side` beats IDW by +17% / +22% / +15% (Holm-significant at 100 and 300 labels, not at 30) and global kriging by +15% / +19% / +10% (significant at 100). A gradient-boosted mean (`rk_gbm`) adds nothing over `rk_side`.
 14. **GNNs on geometry alone are worse than IDW in the city pool.** `gcn_knn` and `gat_del` lose to IDW by 8-19% at every density (6 of 6 cells Holm-significant). Topology and architecture contrasts are all inconclusive after Holm.
 15. **Cross-city transfer gate failed (D0 on the 7 dev cities).** A prior pre-trained on 30 source cities, with no labels from the target city, plus IDW of the remainder reaches 3.31 dB median RMSE at 100 labels vs 2.77 dB for `rk_side` (median gain -7.7%, positive in 3 of 7 cities). The map features carry the prior (+28 points over the geometry-only prior), but not enough to beat a within-map fit. Stage 2 transfer was not run, as the pre-declared rule requires.
+
+16. **A residual GCN on top of `rk_side` adds nothing (Round 7, exploratory, 7 dev cities).** With the do-no-harm gate (paired z > 2.5, relative gain > 1%) the gate opened in 0-5% of runs, so `rgnn_knn` and `rgnn_feat` equal `rk_side` to three decimals at 30 and 100 labels (RMSE 4.009 / 3.157 dB; IDW 5.311 / 3.739). Ungated (λ = 1) they lose 13.0% / 1.9% (kNN) and 10.5% / 3.0% (feature graph) at 30 / 100 labels and are inconclusive at 300 (+0.3% / +0.6%). The graph choice (kNN vs feature space) makes no difference.
+17. **The wall (obstruction-aware) graph is almost the kNN graph and does not help (Round 7b).** On 6 dev units 1.3-16.2% of kNN edges cross a building cell and the wall graph shares 90-98% of its edges with kNN. On the 6 val cities all three β values (1, 3, 10) lose to `rk_side` ungated (mean -0.9% / -2.1% / -3.0%); β = 1 was selected as the least bad, not as a gain. Dev: ungated wall arm -7.8% / -2.8% / +2.0% vs `rk_side`, no difference from the kNN or feature graphs.
+18. **One unconfirmed lead: `rattn_side`, an attention interpolator with map features in the kernel (Round 8, exploratory).** Ungated on the 7 dev cities it beats `rk_side` by +0.4% / +3.2% / +6.2% at 30 / 100 / 300 labels (all 7 cities positive at 100 and 300; CI above 0 at 100 and 300), and the gain is attributable to the map features (`rattn_side_ng` vs `rattn_geo_ng` +1.3% / +4.0% / +6.4%); a learned isotropic kernel without them is not better than `rk_side` (-0.9% / -0.9% / -0.2%), as in Round 4. It does **not** reproduce on the 6 val cities at 100 labels (+0.03%, 3 of 6 cities positive), one city (`city_53_sankt-peterburg`, where `rk_side` is itself worse than IDW) contributes a gain of 10.7% / 18.3%, the gate keeps the model closed in 85-98% of runs, and the model is a one-hop attention kernel, not message passing.
 
 Absolute differences are small compared with the noise of the targets, so always read percentages next to dB values. See [Limitations](#limitations).
 
@@ -70,6 +79,10 @@ Absolute differences are small compared with the noise of the targets, so always
 | GNNs on geometry alone beat IDW (city pool) | **No**: 8-19% worse, significant in all 6 cells |
 | kNN vs Delaunay, GCN vs GAT (city pool) | No detectable difference (all Holm p = 0.77-1.0) |
 | Cross-city pre-training helps on real ray-traced cities | **Not supported**: D0 failed (median gain -7.7%, 3 of 7 cities positive, dev cities only) |
+| A GCN that learns a gated correction on top of `rk_side` beats `rk_side` (Round 7, city dev) | **No** (exploratory, 7 dev cities): gate open in 0-5% of runs, so the gated model equals `rk_side`; ungated -13% to +0.6%, never better with a CI above 0 |
+| An obstruction-aware (wall) graph helps a GNN (Round 7b) | **No** (exploratory): 90-98% edge overlap with kNN; ungated -7.8% / -2.8% / +2.0% vs `rk_side`; no difference from kNN or feature graphs |
+| An attention interpolator over the nearest labels with the 5 map features in its kernel beats `rk_side` (Round 8, `rattn_side_ng`) | **Lead, not a claim.** Dev (7 cities): +0.4% / +3.2% / +6.2% at 30 / 100 / 300 labels, positive in all 7 cities at 100 and 300; val (6 cities, 100 labels): +0.03%. No frozen plan, no Holm-significant cell possible with 7 cities, confirm cities untouched, not a GCN/GAT |
+| The same kernel without map features (`rattn_geo_ng`) beats `rk_side` (Round 8) | **No**: -0.9% / -0.9% / -0.2% (equivalent), the same finding as Round 4 (a learned kernel adds nothing over a fixed one) |
 | A cross-layout prior helps on real radio maps | **Not established.** No positive real-data result demonstrates this shared side-information structure |
 | Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
 
@@ -104,11 +117,14 @@ Absolute differences are small compared with the noise of the targets, so always
 | `rmbench_city.ipynb` | **Canonical city GNN runner**: setup, dev run, freeze, confirm (once), confirm2, report-only tables. States that it replaces `run_city_gnn.py`, `d0_city.py` and `rmbench_city.py` for the confirmatory part (those are still needed to *build* the pool and to run D0) |
 | `d0_city.py` | D0 on the city pool: `pretrain` (two priors on source cities: full and geometry-only) and `d0` (scores them on dev cities only, prints and saves the verdict) |
 | `run_city_gnn.py` | Older command-line version of the city runner (`dev`, `freeze`, `confirm`, `confirm2`). **Superseded**: its `FAMILIES` (`feat` / `gnn` / `topo`) and its Holm over all rows differ from the frozen plan (`primary`, `gnn_feat`, `gnn_vs_classical`, `feat`, `gnn_geo`, `topo`; Holm within family), so `confirm` would refuse with a plan-hash mismatch. Use the notebook |
+| `rmbench_r7.ipynb` | Rounds 7, 7b and 8 (exploratory, city val and dev cities): residual GCN `rgnn`, wall graph and rasters, `rattn` runs. Section 9 (export) is the last section of the notebook but must be run **before** section 11, which imports `rmbench_r7` |
+| `rmbench_r7.py` | Export of the `export`-tagged cells (sections 1-6) of `rmbench_r7.ipynb`: kNN / feature / wall graph builders, raster helpers (`build_rasters`, `blocked_length`, `load_raster`), cross-fitting, residual GCN, gated predictor `rgnn`, `r7_jobs`, executors, `leak_check7`. Needed for `n_jobs > 1`; imported by `rmbench_r8.py`. Checked identical to the notebook export on 2026-10-21 |
+| `rmbench_r8.py` | Hand-written Round 8 module (not exported from a notebook): the `rattn` kernel, gated predictor, `r8_jobs`, `run_tasks8`, `leak_check8`. Adds only; needs `rmbench_r7.py` |
 | `make_fake_city.py` | Synthetic city units (optionally with a planted nonlinear function of the 5 features) for plumbing and sensitivity tests of `d0_city.py` |
 | `inspect_dm_cities.py` | Downloads a few candidate DeepMIMO scenarios and prints per-transmitter summary statistics (no model fitted); writes `dm_inspect.csv` |
 | `diagnose_scene.py`, `diagnose_raster.py` | Geometry-only diagnostics that justified the true-face rasterisation and the 2 m roof cut (bounding-box share inside buildings; horizontal-face heights; ray-tracer settings). Write `scene_check_<slug>.png` and `raster_check_<slug>.png` |
 
-The layers import each other (`ext3` imports `ext2`, which imports `ext`; `ext6` imports `ext5`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
+The layers import each other (`ext3` imports `ext2`, which imports `ext`; `ext6` imports `ext5`; `r8` imports `r7`, which imports `core` and `ext5`), so **all files must sit together** and none may be saved over another. The extension notebooks run a preflight check that stops with an explanation if a file was overwritten.
 
 ## Methods
 
@@ -138,6 +154,8 @@ All methods predict the **same residual** after a shared trend fitted on the tra
 | `rk_onehot`, `rk_spline`, `rk_gbm` (+ `_g`) | Round 6: regression-kriging with a **nonlinear within-map** mean (quantile-bin one-hot + ridge, additive cubic splines + ridge, gradient boosting with CV-chosen size), IDW on the leftover residual. `_g` = gated against `rk_side` by the same rule as the prior |
 | `prior6_K*`, `prior6_K*_ng` | Round 6: the round-5 prior with inputs = geometry plus **globally scaled** covariates |
 | `xfer_*`, `xferft_*`, `within_*` | GNN pre-trained on **other** layouts and applied zero-shot / with 30 fine-tune steps, versus pre-trained on the same layout (but different floors) as control |
+| `rgnn_knn`, `rgnn_feat`, `rgnn_wall` (+ `_ungated`) | Round 7: `rk_side` + λ·c(x). c is a 2-layer GraphSAGE-style GCN (hidden 32, 150 steps, zero-initialised head, so step 0 is `rk_side`) on a graph over every grid cell of the unit: kNN (k = 8), kNN in [position/ℓ, β·z-scored map features], or kNN on distance + β·blocked length from a building raster. Trained on 5-fold **cross-fitted** `rk_side` residuals of the labelled points with masked-label episodes. λ ∈ {0, 0.25, 0.5, 1} by 5-fold CV of the whole pipeline; λ > 0 only if paired z > 2.5, relative gain > 1% and at least 30 labels. `_ungated` fixes λ = 1 |
+| `rattn_geo`, `rattn_side`, `rattn_wall` (+ `_ng`) | Round 8: `trend + ridge + Σ w_qj r_j`, a softmax-weighted sum of the ridge residuals at the K = 16 nearest **labelled** points (the residuals `rk_side` feeds to IDW). Logits = −p₀·log(d/ℓ), with p₀ the IDW power from LOO, plus an MLP of edge features (last layer zero-initialised) and a learned null slot that shrinks to 0. Edge features: log distance and neighbour rank (`geo`); + query and query-minus-source map features (`side`); + blocked length and blocked fraction of the segment from the raster (`wall`). Output is linear in the residuals. Trained leave-one-out on the labelled set (Huber loss, 200 steps, 20% of queries held out for early stopping when n ≥ 30). Gate: `rk_side` + λ·(`rattn` − `rk_side`), λ ∈ {0, 0.5, 1}, same rule as `rgnn`. `_ng` = ungated (λ = 1) |
 
 ### Mechanisms added in the extension rounds
 
@@ -231,6 +249,24 @@ Pre-declared families (from the frozen plan): `primary` (`gcn_knn_side` and `gat
 | `python run_ext.py deepmimo [--blocked]` | `results_ext_dm/dm_grid[_blocked].jsonl` and the same CSV set |
 
 The runner is resumable (finished task ids are skipped). UJI configuration: densities 15 / 30 / 60, 40 test points, 5 replicates.
+
+### D. Round 7 / 7b / 8 (city val and dev cities; exploratory)
+
+All runs use `CITY_CFG` (densities 30 / 100 / 300, 5 replicates unless stated, random split), library-default settings, `n_jobs = 1`, and **only val and dev cities** (`d0_city.pool()["val"]`, `["dev"]`); no confirm city is read. No preregistration file was written for these rounds. Task prefixes are new for every step (`r7smoke`, `r7dev`, `r7tune`, `r7wall`, `r8val`, `r8dev`), so the cache gotcha above does not bite; a step that prints "N done, 0 to run" reused an earlier `.jsonl`.
+
+| # | Run | Reads | Writes |
+|---|---|---|---|
+| 1 | `rmbench_r7.ipynb` sections 1-6, then **section 9** (export) | none | `rmbench_r7.py` |
+| 2 | Sections 7-8: smoke test on 2 dev units (100 labels, 1 replicate) and `leak_check7` | city pool | `results_city/r7_smoke.jsonl` |
+| 3 | Section 8: dev run, 12 units in 7 cities, 6 jobs (`rgnn_knn`, `rgnn_feat`, ungated twins, `rk_side`, `idw`), 180 tasks | city pool | `results_city/r7_dev.jsonl` |
+| 4 | Section 10a: `build_rasters` for the 13 val + dev scenes (resumable, needs network and the original build code) | DeepMIMO | `rmbench_cache_city/rasters/<slug>.npz` |
+| 5 | Section 10b: edge-overlap check, kNN vs wall graph, 6 dev units | rasters | none |
+| 6 | Section 10c: choose β ∈ {1, 3, 10} on the 10 val units (100 labels, 2 replicates, ungated arms) | rasters | `results_city/r7_tune_val.jsonl` |
+| 7 | Section 10d-e: dev run of the wall arms with the selected β, 180 tasks; report | rasters | `results_city/r7_dev_wall.jsonl` |
+| 8 | Section 11: `leak_check8`, then 11a val sanity (10 val units, 100 labels, 2 replicates, 20 tasks) | `rmbench_r8.py`, rasters | `results_city/r8_val.jsonl` |
+| 9 | Section 11b-c: Round 8 dev run (6 jobs, 180 tasks, about 7.7 min) and report | rasters | `results_city/r8_dev.jsonl` |
+
+Hyper-parameters. Round 7 (`r7_jobs`): k = 8, hidden 32, 2 layers, dropout 0.1, lr 1e-2, 150 steps, gate z = 2.5 / rel = 1% / min_labels = 30. Round 8 (`r8_jobs`): K = 16, hidden 16, 200 steps, lr 1e-2, weight decay 1e-3, same gate; fixed a priori, nothing tuned on dev. β for the wall graph was chosen on the val cities only.
 
 ## Results
 
@@ -513,6 +549,114 @@ For `gnn_feat` and `gnn_geo` the p_holm values are 0.0117 in every cell (the sma
 
 **What this supports.** On independent ray-traced city layouts, with library-default models, (i) the five map features are worth about 1 dB at 100 labels, (ii) a regression on those features followed by IDW captures that gain, (iii) GCN / GAT do not improve on it, and (iv) GNNs that only see geometry are worse than IDW. The claim is about *untuned library-default* GNNs on these features, not about GNNs in general.
 
+### Round 7: residual GCN on top of `rk_side` (exploratory; city dev cities)
+
+**Design.** ŷ = `rk_side` + λ·c(x); c is a GCN trained on cross-fitted `rk_side` residuals, λ chosen by the 5-fold do-no-harm gate (see Methods, `rgnn_*`). Data: 12 dev units in 7 cities, 30 / 100 / 300 labels, 5 replicates, 500 random test points, defaults only. `leak_check7` (`rgnn_feat`, one dev unit, 100 labels) returned `True`. There is no frozen plan; the Holm correction runs over the 15 tests of one call, so with 7 cities the smallest attainable p_holm is 0.234 and no cell can be significant. Verdict labels are descriptive. Numbers are transcribed from the saved cell outputs of `rmbench_r7.ipynb`; the `.jsonl` files were not re-read.
+
+**Mean RMSE (dB) over the 7 dev cities** (units and replicates averaged within a city):
+
+| Method | 30 | 100 | 300 |
+|---|---|---|---|
+| `idw` | 5.311 | 3.739 | 2.831 |
+| `rk_side` | 4.009 | 3.157 | 2.523 |
+| `rgnn_knn` (gated) | 4.009 | 3.157 | 2.516 |
+| `rgnn_feat` (gated) | 4.009 | 3.157 | 2.519 |
+| `rgnn_knn_ungated` | 4.526 | 3.201 | 2.543 |
+| `rgnn_feat_ungated` | 4.419 | 3.239 | 2.541 |
+
+**Relative RMSE gain vs `rk_side`** (%, positive = A better; CI over cities):
+
+| A | 30 | 100 | 300 |
+|---|---|---|---|
+| `rgnn_knn` (gated) | 0.00, equivalent | 0.00, equivalent | +0.33, equivalent |
+| `rgnn_feat` (gated) | 0.00, equivalent | 0.00, equivalent | +0.24, equivalent |
+| `rgnn_knn_ungated` | -13.0 [-19.1, -7.3], A worse | -1.9 [-5.4, 1.3], inconclusive | +0.3 [-5.0, 7.3], inconclusive |
+| `rgnn_feat_ungated` | -10.5 [-16.6, -4.8], A worse | -3.0 [-5.3, -0.4], A worse | +0.6 [-4.3, 7.4], inconclusive |
+
+`rgnn_feat` vs `rgnn_knn` (gated): 0.00 / 0.00 / -0.09, equivalent. Gate open fraction: `rgnn_feat` 0.00 / 0.00 / 0.02, `rgnn_knn` 0.00 / 0.00 / 0.05 at 30 / 100 / 300 labels.
+
+**Reading.** The gate does its job and the GCN has nothing to offer: wherever the gate is closed the output is `rk_side`, and where it is forced open (ungated) the correction hurts at low density and is a coin flip at 300 labels. Possible reasons, **not tested here**: the IDW inside `rk_side` already extracts the spatial structure from the residuals, so the cross-fitted residuals left for the GCN are mostly noise at 30-300 labels; and on a 2 m grid a 2-layer GCN sees about 4 m, so most nodes see no labelled neighbour (the motivation for Round 8).
+
+### Round 7b: obstruction-aware (wall) graph (exploratory)
+
+**Does the wall graph differ from kNN?** Section 10b (6 dev units; kNN k = 8 vs `d + β·blocked_length` with β = 3 over 24 candidates):
+
+| Unit | n | median kNN edge (m) | share of kNN edges crossing a building | mean blocked length (m) | edge overlap (kNN vs wall) |
+|---|---|---|---|---|---|
+| `city_5_philadelphia` #0 | 1041 | 2.24 | 0.089 | 0.125 | 0.928 |
+| `city_5_philadelphia` #2 | 1253 | 2.24 | 0.162 | 0.267 | 0.903 |
+| `city_13_columbus` #2 | 2126 | 2.24 | 0.043 | 0.070 | 0.943 |
+| `city_53_sankt-peterburg` #0 | 2873 | 2.24 | 0.013 | 0.015 | 0.962 |
+| `city_80_philadelphia` #0 | 3885 | 2.06 | 0.030 | 0.041 | 0.975 |
+| `city_87_jinan` #1 | 2266 | 3.16 | 0.032 | 0.092 | 0.966 |
+
+Almost no kNN edge crosses a building and the two edge sets overlap 90-98%. The notebook's own stopping rule for this check ("if almost no kNN edge crosses a building and the two edge sets overlap ~100%, the wall graph cannot help: stop here") is close to met; the run continued anyway.
+
+**β on the 6 val cities** (ungated arms, 100 labels, 2 replicates; mean gain % vs `rk_side`): kNN graph -3.01, wall β = 1 -0.91, β = 3 -2.13, β = 10 -3.03. Per-city values range from -10.5 to +1.3. Every candidate loses on average; β = 1 was selected as the least bad.
+
+**Dev run with β = 1** (7 cities, % gain vs `rk_side` at 30 / 100 / 300 labels): gated `rgnn_wall_b1` 0.00 / 0.00 / +0.58, all equivalent; ungated -7.8 [-12.7, -3.4] A worse / -2.8 [-4.9, -0.7] A worse / +2.0 [-2.5, 8.3] inconclusive. Ungated wall vs ungated kNN graph: +3.6 / -1.1 / +1.6, all inconclusive; vs ungated feature graph: +1.5 / +0.1 / +1.3, all inconclusive. Gate open fraction 0.00 / 0.00 / 0.05.
+
+### Round 8: label-centric attention interpolator `rattn` (exploratory; city val and dev cities)
+
+**Design.** Round 7's GNNs live on a graph over every grid cell, so with 30-300 labels most nodes see no label. `rattn` sends messages directly from the K = 16 nearest labelled points to each query: a softmax-weighted sum of ridge residuals whose logits start at the IDW kernel (power from LOO) plus a zero-initialised MLP of edge features and a null slot (see Methods, `rattn_*`). Arms: `rattn_geo` (log distance, rank: a learned isotropic kernel, the same question as Round 4's learned vs fixed kernel), `rattn_side` (+ the 5 map features of the query and query-minus-source), `rattn_wall` (+ blocked length and fraction from the raster). Hyper-parameters are fixed a priori and nothing was tuned on dev; the round was **designed after seeing Round 7 dev and val output**, and the decision to read the ungated `_ng` arms as the diagnostic came after the gated arms turned out to equal `rk_side`. `leak_check8` (`rattn_wall`, one dev unit, 100 labels) returned `True`.
+
+**Val sanity run** (6 val cities, 100 labels, 2 replicates; gain % vs `rk_side`; gated arms are 0.00 in every city except `rattn_wall` in marrakesh, +0.11):
+
+| City | `rattn_geo_ng` | `rattn_side_ng` | `rattn_wall_ng` |
+|---|---|---|---|
+| `city_12_fortworth` | +0.78 | +1.74 | +1.13 |
+| `city_25_instanbul` | -2.24 | -0.27 | -0.60 |
+| `city_4_phoenix` | +1.51 | +1.46 | +4.75 |
+| `city_52_marrakesh` | -2.25 | -1.69 | +3.10 |
+| `city_67_fujiyoshida` | +0.02 | +0.43 | +1.98 |
+| `city_86_ankara` | -2.58 | -1.49 | -0.33 |
+| **mean** | -0.79 | +0.03 | +1.67 |
+
+**Dev run** (7 cities, 12 units, 30 / 100 / 300 labels, 5 replicates; gain % vs the named B, [CI over cities], verdict; p_holm in parentheses). One Holm call covers 27 tests, so with 7 cities **0.42 is the smallest attainable p_holm**, reached by every cell in which all 7 cities have the same sign; nothing here can be Holm-significant.
+
+| A vs B | 30 | 100 | 300 |
+|---|---|---|---|
+| `rattn_side_ng` vs `rk_side` | +0.4 [-0.8, 1.7] equivalent (1.0) | +3.2 [0.8, 6.2] A better (0.42) | +6.2 [2.5, 10.8] A better (0.42) |
+| `rattn_wall_ng` vs `rk_side` | +1.0 [0.2, 2.3] A better (1.0) | +1.6 [-1.0, 4.8] inconclusive (1.0) | +6.2 [2.0, 12.8] A better (0.42) |
+| `rattn_geo_ng` vs `rk_side` | -0.9 [-1.5, -0.4] equivalent (0.59) | -0.9 [-1.6, 0.1] equivalent (1.0) | -0.2 [-0.9, 0.5] equivalent (1.0) |
+| `rattn_side` (gated) vs `rk_side` | +0.07 [0.0, 0.2] equivalent | +0.39 [0.0, 1.1] equivalent | +2.9 [0.1, 7.4] A better (1.0) |
+| `rattn_wall` (gated) vs `rk_side` | -0.005 equivalent | -0.05 equivalent | +1.7 [0.2, 4.0] A better (1.0) |
+| `rattn_geo` (gated) vs `rk_side` | 0.00 equivalent | 0.00 equivalent | 0.00 equivalent |
+| `rattn_side_ng` vs `rattn_geo_ng` | +1.3 [-0.2, 2.9] inconclusive (1.0) | +4.0 [2.1, 6.6] A better (0.42) | +6.4 [2.6, 11.1] A better (0.42) |
+| `rattn_wall_ng` vs `rattn_side_ng` | +0.7 [-0.2, 1.3] equivalent (1.0) | -1.7 [-2.1, -1.3] A worse (0.42) | +0.1 [-2.5, 3.4] inconclusive (1.0) |
+| `rattn_wall_ng` vs `rgnn_knn_ungated` | +11.7 [6.9, 16.3] A better (0.42) | +3.3 [0.1, 6.2] A better (1.0) | +5.8 [2.9, 9.1] A better (0.42) |
+
+Gate open fraction (dev): `rattn_geo` 0.00 / 0.00 / 0.00, `rattn_side` 0.02 / 0.07 / 0.15, `rattn_wall` 0.02 / 0.03 / 0.07 at 30 / 100 / 300 labels (val, 100 labels: 0.00 / 0.00 / 0.05).
+
+**Per-city dev results** (RMSE in dB for `rk_side` and `idw`; ungated gain % vs `rk_side` for the three arms; the 30-label rows are in the notebook output):
+
+| City | labels | `rk_side` | `idw` | `rattn_geo_ng` | `rattn_side_ng` | `rattn_wall_ng` |
+|---|---|---|---|---|---|---|
+| `city_13_columbus` | 100 | 4.26 | 4.40 | +1.52 | +7.72 | +6.61 |
+| | 300 | 3.20 | 3.24 | -1.41 | +8.02 | +3.83 |
+| `city_26_dubai` | 100 | 2.44 | 3.24 | -1.44 | +0.91 | -0.73 |
+| | 300 | 1.78 | 2.24 | +1.05 | +3.77 | +5.30 |
+| `city_53_sankt-peterburg` | 100 | 1.88 | 0.87 | -0.45 | +10.65 | +9.44 |
+| | 300 | 1.29 | 0.58 | -0.66 | +18.27 | +24.97 |
+| `city_5_philadelphia` | 100 | 3.46 | 4.24 | -1.27 | +1.49 | +0.17 |
+| | 300 | 2.76 | 3.09 | -1.14 | +0.27 | +0.73 |
+| `city_68_reykjavik` | 100 | 4.48 | 5.56 | -0.81 | +0.14 | -2.69 |
+| | 300 | 3.94 | 4.67 | -0.45 | +1.53 | +0.31 |
+| `city_80_philadelphia` | 100 | 2.57 | 3.98 | -1.94 | +2.27 | +0.18 |
+| | 300 | 2.12 | 2.94 | +0.73 | +7.96 | +5.37 |
+| `city_87_jinan` | 100 | 3.01 | 3.88 | -1.87 | +0.53 | -0.87 |
+| | 300 | 2.58 | 3.06 | +0.75 | +3.00 | +2.43 |
+
+**Reading.**
+
+- **What carries the gain.** A learned isotropic kernel is no better than `rk_side` (`rattn_geo_ng` -0.9 / -0.9 / -0.2%), the same finding as Round 4. Adding the 5 map features to the kernel is what moves it (`rattn_side_ng` vs `rattn_geo_ng` +4.0 / +6.4% at 100 / 300 labels); the obstruction features add nothing beyond them (`rattn_wall_ng` vs `rattn_side_ng` +0.7 / -1.7 / +0.1%). One hypothesis, untested: the map features make the smoothing non-stationary (less weight across shadow boundaries), which a stationary IDW inside `rk_side` cannot do.
+- **Consistency.** `rattn_side_ng` beats `rk_side` in all 7 dev cities at 100 and 300 labels (median city gain +1.5% at 100, +3.8% at 300), but the val cities do not reproduce it at 100 labels (+0.03% mean, 3 of 6 cities positive). Two exploratory samples of 6-7 cities disagree; the true effect at 100 labels may be near zero.
+- **Concentration.** `city_53_sankt-peterburg` has by far the largest gains (10.7% / 18.3%), and there `rk_side` is itself worse than IDW (1.88 vs 0.87 dB at 100 labels). After the gain `rattn_side_ng` is about 1.7 dB at 100 and 1.05 dB at 300 labels, still above IDW. Part of that gain is recovery from a bad `rk_side` fit, not a better interpolator.
+- **Gate.** The gated models are `rk_side` almost everywhere (open 0-15% of runs); only the 300-label cells are positive with a CI above 0 (+2.9% side, +1.7% wall). The gate rule (z > 2.5, relative gain > 1%) is too strict for effects of this size at this label count; it was not loosened, because any change after seeing dev would be post hoc.
+- **Not a GCN/GAT.** `rattn` is a one-hop attention kernel with output linear in the residuals, closer to a learned kernel smoother (like KGNN) than to message passing between layers. Do not cite it as evidence for GCN/GAT; if it is reported, name it for what it is.
+
+**Not done yet (needed before any confirmatory claim).** The `rattn` arms have not been run on the val cities at 30 and 300 labels; no plan has been frozen; R8 has been compared only against `rk_side` and IDW (the stronger `rk_gbm` / `rk_spline`, `krig_global` and `kgnn` were run only in the city study's confirm run, not on dev here); the confirm cities have not been used for any Round 7/8 arm; rasters exist only for the 13 val + dev scenes (needed for `rattn_wall`, not for `rattn_side`); and the `confirm2` pool is still empty, so there is no replication set.
+
 ### UJI cross-layout runs (partial; descriptive only)
 
 Only part of this layer was available when this README was updated, and **none of it supports an inferential claim**:
@@ -543,6 +687,11 @@ Only part of this layer was available when this README was updated, and **none o
 - **Round 6 is semi-synthetic.** The generated covariates are not real side information, `f` is planted, and the D0 thresholds are a priori choices. The frozen no-harm rule failed (see Round 6). The fresh layouts of Round 6 (seeds 31 / 9) are now burned.
 - **City study.** (i) The pool has one layout per city and 10 confirmation cities: the smallest attainable family-wise p-value is 0.0117, per-city results are heterogeneous (the sign of the feature gain differs across cities), and the dev cities (7) cannot reach significance at all. (ii) The `confirm2` pool is empty, so there is **no replication** of the confirmatory run. (iii) Every neural arm is a library default with 150 steps and no tuning; this was pre-declared, but the negative GNN result is therefore about default-configured GNNs. (iv) Receiver grids are dense simulated maps, random test points favour interpolators (no blocked split was run on the city pool), and the target is ray-traced path power at 3.5 GHz, not 6G bands or measurements. (v) The map rasteriser and its eligibility filter were validated on a subset of cities by geometry and path existence; 34 of the 87 scenarios that downloaded were rejected by that filter. (vi) The 2% equivalence margin is a convention of this project. (vii) Dev-run numbers are exploratory and two of them did not carry over to the confirmation cities.
 - **Script vs notebook.** `run_city_gnn.py` is out of date relative to the frozen plan (different families, Holm over all rows). The confirmatory contrasts in `results_city/` come from `rmbench_city.ipynb` (Holm within each family). Do not rerun `confirm` from the script.
+- **Rounds 7-8 are exploratory.** No frozen plan; 7 dev and 6 val cities, so no Holm p-value below 0.234 (Round 7 / 7b, 15 tests per call) or 0.42 (Round 8, 27 tests per call) is attainable and the verdict labels are descriptive. Round 8 was designed after seeing Round 7 dev and val output. Its hyper-parameters were fixed a priori and not tuned on dev, but promoting the ungated `_ng` arms as the diagnostic was decided after the gated arms equalled `rk_side`. Dev and val disagree for `rattn_side_ng` at 100 labels (+3.2% vs +0.03%), and per-city effects are heterogeneous (+0.1% to +10.7% at 100 labels on dev).
+- **`rattn` is not exactly `rk_side` at initialisation.** Its softmax weights run over the 16 nearest labels with a null slot at logit -3, whereas `rk_side` uses IDW with a LOO-chosen neighbourhood, so `rattn_geo_ng` differs from `rk_side` by -0.2% to -0.9% before any learning. Only λ = 0 is exactly `rk_side`.
+- **Gate fold size at 30 labels (Round 8).** `fit_kernel` enables the early-stopping split only when n ≥ 30. At 30 labels the 5-fold gate fits on 24 labels, so gate CV evaluates a different training procedure (200 steps, no early stopping) than the final fit (6 queries held out). The gate is closed at 30 labels in 98% of runs anyway; whether the mismatch contributes is not tested.
+- **Round 7 / 8 leak checks** ran on one dev unit at 100 labels each (`rgnn_feat`, `rattn_wall`); the other arms share the code path but were not checked separately.
+- **Round 7b/8 rasters** exist for the 13 val + dev scenes only; `build_rasters` is marked untested in the dev sandbox in its docstring, and its output was not validated beyond the edge-overlap check.
 - **UJI.** The available grid file covers one building-floor and the blocked leave-one-building-out file covers two buildings; neither supports a significance claim. The 15-label blocked results are dominated by an unstable trend fit.
 - **No real-data evidence for cross-layout learning of side-information structure.** All positive transfer results are simulated; on real Wi-Fi, pre-training helped only at 5 labels (rounds 1 and 3).
 - **Exploratory outputs.** `run_ext.py` runs and the trend-repair table are exploratory. Only contrasts frozen in a pre-registration file are labelled confirmatory.
@@ -559,3 +708,4 @@ Only part of this layer was available when this README was updated, and **none o
 - Tuned hyper-parameters in the main sweep: `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features. `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features. `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3. Round 2 defaults: Kmax 12, `s2_init` 0.3, 150 steps.
 - City study: configuration `CITY_CFG` (`max_points` 12 000, `min_unit_points` 1 000, `n_test` 500, densities 30 / 100 / 300, 5 replicates, `seed` 0, random split, `trend_mode` "fit"); feature version `raster-v2`; pool plan `results_city/prereg_city.json` (written by `rmbench_city.py roles --freeze`); confirmatory plan `results_city/prereg_city_gnn.json`, sha256 `8e48c85156c3d677c6a4cb4d4f4b5e...` (full hash in the file), frozen 2026-10-19 10:33:47 before the confirm run; the notebook asserts the hash before `confirm`. The dev run was done before the freeze and informed nothing in the plan (jobs and families are the pre-declared ones). Per-task seeds derive from a stable hash of the task id.
 - D0 on the city pool: priors `results_city/city_full_K30.pkl` and `city_geo_K30.pkl`, trained on the 30 source cities with the 6 validation cities held out, scored on the 7 dev cities only (`n_units` 24 per density, 12 available). The confirm cities were not touched by D0.
+- Round 7 / 7b / 8: no preregistration file; val and dev cities only (`d0_city.pool()["val"]`, `["dev"]`), `CITY_CFG` unchanged (densities 30 / 100 / 300, 5 replicates, `seed` 0, random split), task prefixes `r7smoke`, `r7dev`, `r7tune`, `r7wall`, `r8val`, `r8dev`, outputs in `results_city/` (`r7_smoke.jsonl`, `r7_dev.jsonl`, `r7_tune_val.jsonl`, `r7_dev_wall.jsonl`, `r8_val.jsonl`, `r8_dev.jsonl`), rasters in `rmbench_cache_city/rasters/`. Per-task seeds derive from a stable hash of the task id. `rmbench_r7.py` is the export of the notebook's `export`-tagged cells (identical when checked 2026-10-21); re-run section 9 after any edit to sections 1-6 and restart the kernel before importing it. The tables above were transcribed from the saved notebook cell outputs, not re-estimated.

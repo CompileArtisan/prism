@@ -2,7 +2,7 @@
 
 A unit-level benchmark of classical interpolators (IDW, ordinary kriging) and learned models (GCN, GAT, a kriging-initialised graph model called KGNN) that predict received power from a handful of labeled measurements. One *unit* is one transmitter's radio map, and every statistical test is paired across independent parents (transmitters, building-floors or layouts, depending on the dataset).
 
-The work ran in eight stages plus two partial runs, followed by three exploratory rounds on the city pool (Round 7, 7b and 8; val and dev cities only, no frozen plan), and the older stages are never overwritten:
+The work ran in eight stages plus two partial runs, followed by three exploratory rounds on the city pool (Round 7, 7b and 8; val and dev cities only, no frozen plan) and a **dense indoor run** (2026-10-21; 50 / 100 / 200 / 300 labels, plan frozen before the run), and the older stages are never overwritten:
 
 | Stage                                        | Notebook                                                 | Data                                                                                                                 | Purpose                                                                                                                                                                                                                   |
 |----------------------------------------------|----------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -17,6 +17,7 @@ The work ran in eight stages plus two partial runs, followed by three explorator
 | **Round 7** (exploratory) | `rmbench_r7.ipynb` sections 1-8 (+ `rmbench_r7.py`) | City pool: 7 dev cities (12 units) and 6 val cities (10 units), 30 / 100 / 300 labels; confirm cities not used | Can a GCN that learns a cross-fitted, CV-gated correction on top of `rk_side` (kNN or feature-space graph over every grid cell) improve on it? |
 | **Round 7b** (exploratory) | `rmbench_r7.ipynb` section 10 | Same cities, plus building rasters for the 13 val + dev scenes | Obstruction-aware ("wall") graph: does it change the neighbours at all, and does it help? |
 | **Round 8** (exploratory) | `rmbench_r7.ipynb` section 11 + `rmbench_r8.py` | Same cities and rasters | Label-centric, obstruction-aware attention interpolator (`rattn`): messages go from the K nearest *labelled* points to each query instead of through a graph over every grid cell |
+| **Dense indoor run** (2026-10-21) | `dense_indoor_radiomap.ipynb` (+ `run_indoor_dense.py`) | Wall simulator (12 layouts x 6 transmitters, 1000 points each) and DeepMIMO `i1_2p5` (24 tx), `i2_28b` (1 tx), `i3_60` (2 tx) | Brief's dense setting (200+ labels): do GCN / GAT beat IDW and kriging at 50 / 100 / 200 / 300 labels on indoor layouts, with one common coverage metric (`bacc_q25`) |
 | **UJI extension runs** (partial)             | `run_ext.py`                                             | UJIIndoorLoc, 15 / 30 / 60 labels, random and blocked, leave-one-building-out transfer                               | Real indoor cross-layout evidence for the M3 timeline. **Incomplete**: see the UJI section                                                                                                                                |
 
 ## Current interpretation (updated 2026-10-21)
@@ -26,6 +27,8 @@ The work ran in eight stages plus two partial runs, followed by three explorator
 Earlier rounds point the same way. The KGNN's small edge over IDW and global kriging is reproducible, but Round 4's ablation shows it comes from the fixed local-kriging structure and nugget, not from learned parameters. The strongest positive learning result is semi-synthetic: in Round 6 a pre-trained **pointwise MLP prior** (not message passing) beats every comparator, including nonlinear within-map regression-kriging, once a shared signal of amplitude >= 0.2 is deliberately planted into simulated maps. The Round-6 false-positive control did **not** pass its written rule as stated (see Round 6). The city-pool transfer gate (D0 on real ray-traced cities) **failed**, so cross-city pre-training was not run at confirmatory scale.
 
 **Rounds 7-8 (exploratory; val and dev cities only; no frozen plan; confirm cities untouched by construction of the notebook cells) do not change the bottom line.** A GCN that learns a gated correction on top of `rk_side` adds nothing (the gate stays closed in 0-5% of runs; ungated it is worse at 30 and 100 labels), and an obstruction-aware graph is 90-98% the same graph as kNN and does not help. The one lead is Round 8's `rattn`, an attention interpolator over the nearest labelled points with the 5 map features inside its kernel: +3.2% / +6.2% over `rk_side` at 100 / 300 labels on the 7 dev cities (positive in all 7), but +0.03% on the 6 val cities at 100 labels, and it is not a GCN/GAT (see Round 8). It is a hypothesis to confirm, not a result.
+
+**Dense indoor run (2026-10-21) does not change the bottom line.** At 50 / 100 / 200 / 300 labels on 12 simulated indoor layouts the three frozen primary contrasts all fail: `gcn_knn` and `gat_del` are 8-10% worse than IDW and 9-12% worse than global kriging in RMSE, Holm-significant in every cell, and the gap does not close by 300 labels. The coverage metric (`bacc_q25`) points the same way (GNN below IDW in all 8 cells, Holm-significant in 7). Side information again carries the gain (`rk_side` vs IDW +20-23% RMSE), and GNNs given the same side information are 16-31% worse than `rk_side`. Delaunay vs kNN shows no benefit. On DeepMIMO `i1_2p5` the GNNs also lose to IDW, but that scenario is 100% line-of-sight with RMSE of 0.06-0.10 dB, so its effects are statistically clear and practically negligible, and its 24 parents are transmitters in one room. See [Dense indoor run](#dense-indoor-run-2026-10-21).
 
 Use the saved raw outputs to verify every number before quoting it. Some long tables and notebook outputs were truncated in the review, and the `radiogat` and 6G sweep notebooks were only skimmed. Do not treat a result as confirmed merely because its experiment script defines the method.
 
@@ -84,6 +87,12 @@ Absolute differences are small compared with the noise of the targets, so always
 | An attention interpolator over the nearest labels with the 5 map features in its kernel beats `rk_side` (Round 8, `rattn_side_ng`) | **Lead, not a claim.** Dev (7 cities): +0.4% / +3.2% / +6.2% at 30 / 100 / 300 labels, positive in all 7 cities at 100 and 300; val (6 cities, 100 labels): +0.03%. No frozen plan, no Holm-significant cell possible with 7 cities, confirm cities untouched, not a GCN/GAT |
 | The same kernel without map features (`rattn_geo_ng`) beats `rk_side` (Round 8) | **No**: -0.9% / -0.9% / -0.2% (equivalent), the same finding as Round 4 (a learned kernel adds nothing over a fixed one) |
 | A cross-layout prior helps on real radio maps | **Not established.** No positive real-data result demonstrates this shared side-information structure |
+| GCN/GAT beat IDW and global kriging at 50-300 labels on indoor layouts (dense run, wall simulator, 12 layouts) | **No** (frozen primary contrasts): -8% to -12% RMSE, Holm-significant in 12 of 12 cells; coverage `bacc_q25` below IDW in 8 of 8 cells (significant in 7) |
+| Side information helps a dense indoor map (wall simulator) | **Yes**: `rk_side` vs IDW +19.8% to +23.2% RMSE, +18% to +26% coverage metric, all Holm-significant. The author's own simulator, so informative by construction |
+| A GNN with side information beats `rk_side` (dense, wall simulator) | **No**: `gcn_knn_side` -30% to -31%, `gat_del_side` -16% to -23%, all significant |
+| Delaunay beats kNN (dense run) | **No**: wall RMSE -0.4% to -1.6% for GCN (significant at 200 and 300 labels, in the wrong direction), -0.1% to -1.1% for GAT; coverage metric and DeepMIMO `i1_2p5` show no significant difference |
+| GAT beats GCN (dense run) | **Marginally, only at high density**: wall `gat_del` vs `gcn_del` +1.3% / +2.5% at 200 / 300 labels (significant); `gat_knn` vs `gcn_knn` +1.1% at 300 only; DeepMIMO +3.5% at 300 (`gat_del` vs `gcn_del`). Both still lose to IDW |
+| Real indoor data can support 200+ labels (UJI) | **No**: under the default UJI config only 2 of 13 eligible units have >= 100 + 40 points and none has >= 150 + 40; UJI is 13 units in 2 building-floors, so it is descriptive only |
 | Anything about 6G / mmWave / sub-THz | **Not supported** by these data |
 
 ![Real Wi-Fi RMSE versus labels](figures/fig2_real_wifi_rmse_vs_labels.png)
@@ -111,6 +120,8 @@ Absolute differences are small compared with the noise of the targets, so always
 | `rmbench_ablate.py` | Ablation layer: switchable KGNN fit (`polar`, `freeze`, `tau_zero`, `step0`) and the `kgnn_abl` dispatcher. Adds only; `rmbench_core/nn/ext/ext2/ext3` are untouched |
 | `run_ablation.py` | Same ablation driver as the notebook, as a command line (`smoke`, `run`, `report`) |
 | `readme_figures.py` | Regenerates every figure in this README into `figures/` from numbers transcribed from the saved notebook outputs (nothing is re-estimated) |
+| `run_indoor_dense.py` | **Dense indoor runner** (adds only; imports `rmbench_core/ext/ext2/ext3`): `diagnose-uji`, `freeze`, `smoke`, `run wall|dm`, `report`. Defines the single coverage metric (`bacc_q25`), the frozen plan and a resumable executor that adds a `within5` column |
+| `dense_indoor_radiomap.ipynb` | Notebook driver for the dense run (setup, UJI diagnosis, optional UJI reruns, freeze, smoke, wall, DeepMIMO, figures). Outputs are saved in the notebook; raw rows go to `results_dense/` |
 | `rmbench_dmfix.py` | Carrier-frequency fix for DeepMIMO 4.0.5 (reads `ds.rt_params.frequency`; the name fallback requires `<int>p<int>`). `import` it once per process before any DeepMIMO load |
 | `rmbench_city.py` | City pool builder: `build` (download, rasterise true building faces at 2 m with a 2 m roof cut, compute the 5 map features, write units + manifest) and `roles [--freeze]` (assign source / val / dev / confirm roles, hash the plan) |
 | `city_manifest.csv` | Output of `rmbench_city.py`: 92 candidate cities, eligibility, units, building counts, alignment statistics, role |
@@ -267,6 +278,19 @@ All runs use `CITY_CFG` (densities 30 / 100 / 300, 5 replicates unless stated, r
 | 9 | Section 11b-c: Round 8 dev run (6 jobs, 180 tasks, about 7.7 min) and report | rasters | `results_city/r8_dev.jsonl` |
 
 Hyper-parameters. Round 7 (`r7_jobs`): k = 8, hidden 32, 2 layers, dropout 0.1, lr 1e-2, 150 steps, gate z = 2.5 / rel = 1% / min_labels = 30. Round 8 (`r8_jobs`): K = 16, hidden 16, 200 steps, lr 1e-2, weight decay 1e-3, same gate; fixed a priori, nothing tuned on dev. β for the wall graph was chosen on the val cities only.
+
+### E. Dense indoor run (`dense_indoor_radiomap.ipynb` / `run_indoor_dense.py`)
+
+| Step | Command / cell | Writes |
+|---|---|---|
+| UJI diagnosis | `python run_indoor_dense.py diagnose-uji` | prints per-building row / failure counts of `results_ext_uji/*.jsonl` and the number of UJI units that could carry 60 / 100 / 150 / 200 labels |
+| Freeze | `python run_indoor_dense.py freeze` | `results_dense/prereg_dense.json` and `.sha256` (refuses to overwrite; `run` refuses to start without it). Commit before running |
+| Smoke | `python run_indoor_dense.py smoke` | `dense_smoke/` (4 layouts, 15 steps; plumbing only) |
+| Wall run | `python run_indoor_dense.py run wall` | `results_dense/dense_wall.jsonl`; `dense_wall_{rmse,bacc_q25,acc_q25,within5,area_q25,...}.csv`; `dense_wall_contrasts_{rmse,bacc_q25}.csv` |
+| DeepMIMO run | `python run_indoor_dense.py run dm` | `results_dense/dense_dm.jsonl` and the same CSV set |
+| Figures, summary | last two notebook cells | `results_dense/figures/*.png`, `results_dense/summary_dense.csv` |
+
+Configuration: densities 50 / 100 / 200 / 300, 5 replicates, 200 test points, random split, test salt `dense1`, robust trend, library-default neural settings (150 steps, no tuning). Wall simulator: 12 layouts x 6 transmitters x 1000 points (simulator seed 7). DeepMIMO: `i1_2p5` (24 units kept), `i2_28b` (1), `i3_60` (2). Methods: `trend`, `idw`, `krig_global`, `kgnn`, `gcn_knn`, `gcn_del`, `gat_knn`, `gat_del` (+ `rk_side`, `gcn_knn_side`, `gat_del_side` on the wall simulator only). Cache gotcha as above: change `TAG_SUFFIX` if the job list changes.
 
 ## Results
 
@@ -657,16 +681,66 @@ Gate open fraction (dev): `rattn_geo` 0.00 / 0.00 / 0.00, `rattn_side` 0.02 / 0.
 
 **Not done yet (needed before any confirmatory claim).** The `rattn` arms have not been run on the val cities at 30 and 300 labels; no plan has been frozen; R8 has been compared only against `rk_side` and IDW (the stronger `rk_gbm` / `rk_spline`, `krig_global` and `kgnn` were run only in the city study's confirm run, not on dev here); the confirm cities have not been used for any Round 7/8 arm; rasters exist only for the 13 val + dev scenes (needed for `rattn_wall`, not for `rattn_side`); and the `confirm2` pool is still empty, so there is no replication set.
 
+### Dense indoor run (2026-10-21)
+
+Plan `results_dense/prereg_dense.json` (sha256 `06ca69ef...a790184`, written 2026-10-21) fixes the grid, the metrics, the contrast lists and three primary contrasts (`gcn_knn` vs `idw`, `gat_del` vs `idw`, `gat_del` vs `krig_global`). The hypotheses themselves are not new: earlier rounds already showed GNN <= IDW, so this run is a confirmation of an existing negative on a denser grid, not a fresh discovery. Smoke test: 528 rows, 0 failed. Wall run: 15 840 rows, 0 failed. DeepMIMO run: 4 320 rows, 0 failed.
+
+**Single coverage metric.** Outage threshold = 25th percentile of the unit's TRAIN labels; primary = balanced accuracy of covered vs outage on the test points (`bacc_q25`). Plain accuracy is reported as `acc_q25` (a constant predictor already scores about 0.75), `within5` = fraction of test points within 5 dB, `area_q25` = |predicted - true outage fraction|. Cells with fewer than 8 test points in either class are NaN. In the contrast CSV for this metric the column `mean_delta_db` is on the 1 - `bacc` scale, not dB.
+
+**Wall simulator (inference over 12 layouts; 72 units).** Parent-level mean RMSE (dB):
+
+| Method | 50 | 100 | 200 | 300 |
+|---|---|---|---|---|
+| `trend` | 7.689 | 7.584 | 7.525 | 7.519 |
+| `idw` | 5.392 | 4.757 | 4.253 | 3.978 |
+| `krig_global` | 5.302 | 4.699 | 4.211 | 3.944 |
+| `kgnn` | 5.223 | 4.629 | 4.132 | 3.850 |
+| `gcn_knn` | 5.886 | 5.142 | 4.626 | 4.354 |
+| `gcn_del` | 5.910 | 5.226 | 4.696 | 4.420 |
+| `gat_knn` | 5.854 | 5.140 | 4.583 | 4.308 |
+| `gat_del` | 5.918 | 5.196 | 4.636 | 4.312 |
+| `rk_side` | **4.143** | **3.709** | **3.367** | **3.189** |
+| `gcn_knn_side` | 5.412 | 4.820 | 4.367 | 4.186 |
+| `gat_del_side` | 5.076 | 4.448 | 3.921 | 3.689 |
+
+Coverage metric `bacc_q25` (higher is better): `idw` 0.838 / 0.859 / 0.873 / 0.882, `kgnn` 0.843 / 0.861 / 0.877 / 0.885, `gcn_knn` 0.819 / 0.842 / 0.863 / 0.871, `gat_del` 0.822 / 0.845 / 0.864 / 0.876, `rk_side` 0.881 / 0.893 / 0.901 / 0.903, `trend` 0.686 / 0.694 / 0.698 / 0.700.
+
+Paired contrasts (RMSE; positive = A better; Holm within the call, 14 contrasts x 4 densities = 56 tests; 45 of 56 significant on RMSE and 29 of 56 on the coverage metric):
+
+| A vs B | 50 | 100 | 200 | 300 | Holm-significant |
+|---|---|---|---|---|---|
+| `gcn_knn` vs `idw` (primary) | -9.2% | -8.1% | -8.8% | -9.5% | 4 / 4 |
+| `gat_del` vs `idw` (primary) | -9.8% | -9.2% | -9.0% | -8.4% | 4 / 4 |
+| `gat_del` vs `krig_global` (primary) | -11.6% | -10.6% | -10.1% | -9.3% | 4 / 4 |
+| `kgnn` vs `idw` | +3.1% | +2.7% | +2.8% | +3.2% | 4 / 4 |
+| `krig_global` vs `idw` | +1.7% | +1.2% | +1.0% | +0.8% | 3 / 4 (not at 300) |
+| `rk_side` vs `idw` | +23.2% | +22.0% | +20.8% | +19.8% | 4 / 4 |
+| `gcn_knn_side` vs `rk_side` | -30.6% | -30.0% | -29.7% | -31.3% | 4 / 4 |
+| `gat_del_side` vs `rk_side` | -22.5% | -19.9% | -16.4% | -15.7% | 4 / 4 |
+| `gcn_del` vs `gcn_knn` | -0.4% | -1.6% | -1.5% | -1.5% | 2 / 4 (wrong direction) |
+| `gat_del` vs `gat_knn` | -1.1% | -1.1% | -1.1% | -0.1% | 1 / 4 (200; wrong direction) |
+| `gat_del` vs `gcn_del` | -0.1% | +0.6% | +1.3% | +2.5% | 2 / 4 (200, 300) |
+| `gat_knn` vs `gcn_knn` | +0.6% | +0.05% | +0.9% | +1.1% | 1 / 4 (300) |
+
+Absolute gaps: `gcn_knn` vs `idw` -0.49 / -0.39 / -0.37 / -0.38 dB; `gat_del` vs `idw` -0.53 / -0.44 / -0.38 / -0.33 dB. The GAT-vs-IDW gap in dB narrows with density but the relative gap stays at -8% to -10%. On the coverage metric `gcn_knn` is below `idw` in all four cells (-0.020 to -0.010, significant) and `gat_del` in all four, significant at 50 / 100 / 200 labels but not at 300 (Holm p = 0.16). `kgnn` and `krig_global` vs `idw` on the coverage metric: no significant difference. The repeated `p_holm = 0.0273` is the floor of the exact sign-flip test with 12 parents times the 56-test cap, not a coincidence in the data.
+
+**DeepMIMO (descriptive except `i1_2p5`).** `i1_2p5` (2.5 GHz, 100% LOS, 24 transmitters of one layout): RMSE (dB) at 50 / 100 / 200 / 300 labels: `trend` 0.160 / 0.155 / 0.152 / 0.152, `idw` 0.089 / 0.075 / 0.063 / 0.058, `krig_global` 0.083 / 0.071 / 0.061 / 0.056, `kgnn` 0.082 / 0.071 / 0.060 / 0.054, `gcn_knn` 0.101 / 0.083 / 0.069 / 0.063, `gat_del` 0.099 / 0.083 / 0.068 / 0.062. Paired over the 24 transmitters (44 tests; 28 significant on RMSE, 18 on the coverage metric): `gcn_knn` vs `idw` -14% / -11% / -10% / -10%, `gat_del` vs `idw` -12% / -10% / -8% / -8%, `gat_del` vs `krig_global` -19% / -16% / -12% / -11% (all significant); `kgnn` vs `idw` +7% / +6% / +6% / +6% (significant); no significant Delaunay-vs-kNN difference in any cell; `gat_del` vs `gcn_del` +3.5% at 300 labels only. The coverage metric sits at 0.97-0.99, near its ceiling.
+
+`i2_28b` (28 GHz, 0% LOS, **1 transmitter**) and `i3_60` (60 GHz, 99% LOS, **2 transmitters**) have too few parents for any test. Descriptive RMSE (dB) at 50 / 300 labels: `i2_28b` `idw` 0.832 / 0.546, `kgnn` 0.847 / 0.490, `krig_global` 0.836 / 0.618, `gat_del` 0.943 / 0.596, `gcn_knn` 0.983 / 0.660, `trend` 1.413 / 1.404; `i3_60` `idw` 1.023 / 0.734, `kgnn` 0.971 / 0.670, `krig_global` 1.084 / 0.814, `gat_del` 1.204 / 0.902, `gcn_knn` 1.345 / 0.967, `trend` 1.259 / 1.261. The only thing that can be said is that the same ordering (kgnn <= idw < GNNs) appears at 28 and 60 GHz in these single-/two-transmitter cases. This is the only part of the project that touches mmWave, and it is anecdotal.
+
+**What this run adds to the brief.** Dense (200+) measurement scenarios are now covered on the wall simulator and DeepMIMO; the coverage metric is defined once and used on both; topology (kNN vs Delaunay) and architecture (GCN vs GAT) effects are small and not in favour of the GNN. It does not add real-data evidence: real indoor data (UJI) cannot support 200+ labels (see below), and cross-layout transfer was **not** re-tested in this run.
+
 ### UJI cross-layout runs (partial; descriptive only)
 
 Only part of this layer was available when this README was updated, and **none of it supports an inferential claim**:
 
 - `uji_grid.jsonl` (random split) holds 702 job rows, all `ok`, from **one building-floor** (`uji|b0f1`, 6 access-point units, layout `uji_b0`), densities 15 / 30 / 60. Mean RMSE (dB) at 15 / 30 / 60 labels: `trend` 7.25 / 6.78 / 6.56, `idw` 7.27 / 6.66 / 6.21, `krig_global` 7.26 / 6.78 / 6.40, `kgnn` 7.44 / 6.73 / 6.34, `gcn_knn` 7.43 / 7.01 / 6.57, `gat_del` 7.97 / 7.01 / 6.62. The run is resumable: rerun `python run_ext.py uji` to complete it. Its contrast, outage and MAE tables were not available.
-- `uji_lolo_blocked_*` (leave-one-building-out, blocked split) covers **2 evaluation buildings** (`uji_b0`, `uji_b2`); the pooled `ALL` rows have n = 2 clusters, so the smallest attainable exact p-value is 0.5; all Holm-adjusted p-values are 1.0 and no contrast is significant (`uji_lolo_blocked_contrasts_rmse.csv`). Building `b1` does not appear in the blocked output; this was not investigated.
+- `uji_lolo_blocked_*` (leave-one-building-out, blocked split) covers **2 evaluation buildings** (`uji_b0`, `uji_b2`); the pooled `ALL` rows have n = 2 clusters, so the smallest attainable exact p-value is 0.5; all Holm-adjusted p-values are 1.0 and no contrast is significant (`uji_lolo_blocked_contrasts_rmse.csv`). Building `b1` does not appear in the blocked output. `python run_indoor_dense.py diagnose-uji` (2026-10-21) shows why: under the default `UJI_CFG`, building `b1` produces **no eligible unit at all** (it never reaches the experiment), so this is a data-eligibility effect, not a failed run. Only `uji_b0` (7 units, 114-153 points) and `uji_b2` (6 units, 115-137 points) yield units, one building-floor each, i.e. **13 units in 2 building-floors**. Any statement that UJI has n ~ 13 independent parents counts units, not floors.
 - Pooled mean RMSE (dB) at 15 / 30 / 60 labels (`uji_lolo_blocked_rmse.csv`): `idw` 12.67 / 11.77 / 10.27, `krig_global` 12.67 / 11.84 / 10.30, `kgnn` 12.71 / 12.03 / 10.43, `gcn_knn` 15.90 / 12.10 / 10.58, `gat_del` 16.58 / 12.24 / 10.69, `trend` 27.37 / 11.77 / 10.20, pre-trained `xfer_gat_del` 31.67 / 11.95 / 10.44, `xfer_gcn_knn` 38.42 / 11.89 / 10.23, fine-tuned `xferft_gat_del` 17.41 / 11.74 / 10.28. At 30 and 60 labels every method is within about 0.5 dB of the trend alone: there is no spatial structure to exploit in this setting. Pre-trained arms are 0.2-0.35 dB (2-3%) better than scratch GNNs of the same architecture at 30 and 60 labels, descriptively (all pairs underpowered).
 - **The 15-label blocked rows are probably a trend artifact, not a model result.** The trend-only RMSE in building b0 is 43.6 dB at 15 labels (IDW 14.2 dB), i.e. the fitted trend extrapolates wildly into the held-out block, and every pre-trained arm adds that trend back (51.6 and 65.6 dB). Check the trend fit at very few labels before reporting any 15-label blocked number.
 - Outage metrics (`uji_lolo_blocked_f1_*`, `bacc_*`, `acc_*`, `area_*`) exist for `q10`, `q25` and `abs85` thresholds; pooled outage F1 at the 10% quantile is at most 0.107 for any method (at 15 labels), so they do not separate the methods either.
-- The UJI densities (15 / 30 / 60) do not reach the brief's dense setting (200+).
+- The UJI densities (15 / 30 / 60) do not reach the brief's dense setting (200+), and they cannot: with 40 test points, only 13 units can carry 60 labels, 2 units (both `uji_b0`) can carry 100, and **none** can carry 150 or 200. The dense claim therefore rests on the wall simulator and DeepMIMO (see the dense indoor run).
+- **Status of the UJI files (2026-10-21 diagnosis).** `uji_grid_blocked.jsonl` (b0: 945 rows, b2: 810 rows) and `uji_lolo_blocked.jsonl` (b0: 1050, b2: 900) are complete for the 13 units and all `ok`. `uji_grid.jsonl` (random split) covers only `uji_b0` (702 rows, 6 of 7 units) and there is no `uji_lolo.jsonl`; `python run_ext.py uji` (random split) completes it and is resumable, but with 2 building-floors it can only be descriptive.
 
 ## Limitations
 
@@ -679,7 +753,7 @@ Only part of this layer was available when this README was updated, and **none o
 - **Tuning is parent-disjoint, not layout-disjoint,** for UJI and DeepMIMO (sibling floors / transmitters of the same building can sit in the tuning fold). It is layout-disjoint for `wall`. The tuning budget is small (8 trials per neural method), though tuning made no difference.
 - **Blocked split uses buffer 0:** labeled points may sit right next to the test block.
 - **`gcn_krig` at 30 labels** uses only 6 labeled points for early stopping; its loss to IDW there may reflect noisy selection (not tested).
-- **Not tested:** kriging with the true AP position known (SOD ships AP coordinates) and any deep radio-map baseline (a RadioUNet-style model). Gradient boosting is covered only by `gb_geo` in round 3 (geometric features, real Wi-Fi). State its tuning budget next to any claim about it, because a 18–33% loss at low density will look under-tuned to a reviewer. The `i3_60` slug and the narrowband channel shape are unverified.
+- **Not tested:** kriging with the true AP position known (SOD ships AP coordinates) and any deep radio-map baseline (a RadioUNet-style model). Gradient boosting is covered only by `gb_geo` in round 3 (geometric features, real Wi-Fi). State its tuning budget next to any claim about it, because a 18–33% loss at low density will look under-tuned to a reviewer. The narrowband channel shape is unverified; the `i3_60` slug loads in DeepMIMO 4.0.5 (2 transmitters, 99% LOS, path-power target) as of the dense run.
 - **Round-3 hypotheses were also chosen after earlier output,** and all its primaries are NOT SUPPORTED. Round-3 gains over IDW and kriging in Figure 1 and the tables above are descriptive. Do not relabel the primaries by restricting to densities or splits that look best.
 - **Six buildings** remain the weakest point for real-data inference; adding buildings (Tampere, UTSIndoorLoc, MallIndoorLoc) is the most valuable next step.
 - **Round-4 limits.** The data are the round-3 units (fresh test salt and replicate ids, not fresh buildings). The training-free-kriging claim comes from secondary contrasts; only the learning-vs-untrained contrast was the primary, and it was not established. Do not describe round 4 as showing that learning helps, or relabel the primary using the cells that look best (random split at 20 labels, +1.0%, Holm p = 0.19).
@@ -692,6 +766,10 @@ Only part of this layer was available when this README was updated, and **none o
 - **Gate fold size at 30 labels (Round 8).** `fit_kernel` enables the early-stopping split only when n ≥ 30. At 30 labels the 5-fold gate fits on 24 labels, so gate CV evaluates a different training procedure (200 steps, no early stopping) than the final fit (6 queries held out). The gate is closed at 30 labels in 98% of runs anyway; whether the mismatch contributes is not tested.
 - **Round 7 / 8 leak checks** ran on one dev unit at 100 labels each (`rgnn_feat`, `rattn_wall`); the other arms share the code path but were not checked separately.
 - **Round 7b/8 rasters** exist for the 13 val + dev scenes only; `build_rasters` is marked untested in the dev sandbox in its docstring, and its output was not validated beyond the edge-overlap check.
+- **Dense run: scope.** The wall simulator is the author's own (wall count and LOS are near-deterministic drivers, so the side-information result says nothing about real buildings), DeepMIMO `i1_2p5` is one 100%-LOS room (24 transmitters, not 24 layouts; effects of 0.003-0.01 dB are statistically clear and practically negligible), and `i2_28b` / `i3_60` have 1 and 2 transmitters. There is no real dense indoor data. Inference over layouts is for the 12 wall layouts only (smallest attainable Holm p = 0.0273 with this cap).
+- **Dense run: fresh layouts not verified.** `WALL_SPEC` uses simulator seed 7, the same number as the Round-5 fresh layouts (pool seed 21 / simulator seed 7, now burned). Whether the dense layouts coincide with them was **not checked**; do not call them untouched. The test salt (`dense1`) differs, so the test points differ.
+- **Dense run: no tuning, no cross-layout transfer.** Every neural arm is a library default with 150 steps (as pre-declared), so the negative GNN result is about default GNNs. Transfer to unseen indoor layouts was not re-run on the dense grid.
+- **Dense run: freeze order.** The plan was frozen by `run_indoor_dense.py freeze` before the runs and the runner checks its hash, but whether the file was committed to git before the run was not verified.
 - **UJI.** The available grid file covers one building-floor and the blocked leave-one-building-out file covers two buildings; neither supports a significance claim. The 15-label blocked results are dominated by an unstable trend fit.
 - **No real-data evidence for cross-layout learning of side-information structure.** All positive transfer results are simulated; on real Wi-Fi, pre-training helped only at 5 labels (rounds 1 and 3).
 - **Exploratory outputs.** `run_ext.py` runs and the trend-repair table are exploratory. Only contrasts frozen in a pre-registration file are labelled confirmatory.
@@ -704,6 +782,7 @@ Only part of this layer was available when this README was updated, and **none o
 - Round 4 uses test salt `abl4`, replicate ids 700+, plan in `results_ablation/prereg_ablation.json`; smoke runs write to `ablation_smoke/` and never to `figures/`.
 - Round 5 uses development layouts from pool seed 11 (simulator seed 5, salt `scale5`), extra source layouts from seed 12 (salt `scale5x`), and fresh layouts from pool seed 21 (simulator seed 7, salt `scale5fresh`); plan `results_ext5/prereg_ext5_amend_v4.json`, sha256 `c47de96e…`, committed before Stage 2.
 - Round 6 uses pool seed 31 and simulator seed 9 (salt `scale6fresh`), ledger `results_ext5/seed_ledger.json`, plan `results_ext5/prereg_ext6.json`; unit caches under `results_ext5` are shared with round 5. Priors are stored under `results_ext5/v6/priors` and see source maps only.
+- Dense indoor run: `run_indoor_dense.py` / `dense_indoor_radiomap.ipynb`; test salt `dense1`, `seed` 0, wall simulator seed 7 (12 layouts x 6 transmitters x 1000 points), caches `cache_dense_wall` and `cache_dense_dm`, plan `results_dense/prereg_dense.json` (sha256 `06ca69ef5095b09827bf3aeb12257ec1e4cde86ab1420579c0955a965a790184`, written 2026-10-21), outputs `results_dense/dense_wall.jsonl` and `dense_dm.jsonl`. 16 CPUs, 15 workers: wall evaluation about 9 min for the last 450 tasks, DeepMIMO about 25 min for 540 tasks.
 - Results come from the saved notebook outputs and the `confirmatory_master*.csv` / `claims_conf2.csv` files they write.
 - Tuned hyper-parameters in the main sweep: `gcn`: hidden 32, 2 layers, lr 0.0095, `geo` features. `gcn_krig`: hidden 16, 3 layers, lr 0.0059, dropout 0.3, `geo_los` features. `kgnn`: Kmax 12, lr 0.011, `s2_init` 0.3. Round 2 defaults: Kmax 12, `s2_init` 0.3, 150 steps.
 - City study: configuration `CITY_CFG` (`max_points` 12 000, `min_unit_points` 1 000, `n_test` 500, densities 30 / 100 / 300, 5 replicates, `seed` 0, random split, `trend_mode` "fit"); feature version `raster-v2`; pool plan `results_city/prereg_city.json` (written by `rmbench_city.py roles --freeze`); confirmatory plan `results_city/prereg_city_gnn.json`, sha256 `8e48c85156c3d677c6a4cb4d4f4b5e...` (full hash in the file), frozen 2026-10-19 10:33:47 before the confirm run; the notebook asserts the hash before `confirm`. The dev run was done before the freeze and informed nothing in the plan (jobs and families are the pre-declared ones). Per-task seeds derive from a stable hash of the task id.

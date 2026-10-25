@@ -48,7 +48,7 @@ def _ensure_clone():
         if r.returncode != 0:
             raise RuntimeError("clone failed: " + (r.stdout + r.stderr).replace(_token(), "***")[-300:])
         _git("config", "user.email", "kaggle@example.invalid"); _git("config", "user.name", "kaggle-run")
-    _git("fetch", "origin", check=False)
+    _git("fetch", "--depth", "1", "origin", f"+refs/heads/{BRANCH}:refs/remotes/origin/{BRANCH}", check=False)
     have = _git("ls-remote", "--heads", "origin", BRANCH, check=False).strip()
     if have:
         _git("checkout", "-B", BRANCH, f"origin/{BRANCH}")

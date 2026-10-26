@@ -31,7 +31,7 @@ except Exception:                                   # classical-only use is stil
 # 1  CONFIG / UTILS
 # =====================================================================================
 ARMS_CLASSICAL = ["idw", "krig_global", "rk_side", "rk_gbm"]
-ARMS_LEARNED = ["gnn_kim", "gnn_kim_oldedge", "rgnn_xmap", "radiounet"]
+ARMS_LEARNED = ["gnn_kim", "gnn_kim_oldedge", "rgnn_xmap", "radiounet", "cnn_feat"]
 FEATURE_NAMES = ["log_dist_tx", "los", "blocked_len", "n_crossings", "cover_30m", "dist_nearest_bld"]
 
 DEFAULT_CFG = dict(
@@ -715,9 +715,10 @@ def build_model(arm, hp, cfg):
         cin = 2 + 6 + (1 if arm == "rgnn_xmap" else 0)
         return GraphNet(cin, width=int(hp["width"]), depth=int(hp["depth"]), heads=int(hp.get("heads", 4)),
                         zero_head=(arm == "rgnn_xmap"))
+    cin = 4 + (len(FEATURE_NAMES) if arm == "cnn_feat" else 0)     # cnn_feat = same U-net + the label-free features as extra channels
     if cfg["radiounet_impl"] == "public":
-        return PublicRadioUNet(cfg["radiounet_repo"], 4)
-    return CompactUNet(4, base=int(hp["base"]), depth=int(hp["depth"]))
+        return PublicRadioUNet(cfg["radiounet_repo"], cin)
+    return CompactUNet(cin, base=int(hp["base"]), depth=int(hp["depth"]))
 
 
 def n_params(model):
@@ -793,10 +794,12 @@ def predict_learned(arm, model, hp, ctx, lab, cfg, cache_graphs=True):
             acc.index_add_(0, g, o * ch["w"]); ws.index_add_(0, g, ch["w"])
         res = (acc / ws.clamp_min(1e-9) * scale).cpu().numpy()
     else:
-        x = torch.zeros(1, 4, H, W, device=dev)
+        x = torch.zeros(1, 4 + (len(FEATURE_NAMES) if arm == "cnn_feat" else 0), H, W, device=dev)
         x[0, 0] = torch.from_numpy(ctx.bld.astype(np.float32)).to(dev)
         x[0, 1, ctx.txy[0], ctx.txy[1]] = 1.0
         x[0, 2] = sparse.view(H, W); x[0, 3] = mask.view(H, W)
+        if arm == "cnn_feat":
+            x[0, 4:] = torch.from_numpy(np.ascontiguousarray(ctx.F)).to(dev)
         res = (model(x)[0, 0] * scale).cpu().numpy().ravel()
     yhat = np.zeros(H * W, np.float32)
     o = ctx.out.ravel()
@@ -842,7 +845,8 @@ def train_item(arm, hp, cfg, ctx, rng, label_mode="normal", gt=None):
     sparse, mask = sparse.reshape(H, W), mask.reshape(H, W)
     lossm = ctx.out & (mask == 0)
     if not is_gnn(arm):
-        return dict(bld=ctx.bld, tx=ctx.txy, sparse=sparse, mask=mask, target=R, lossm=lossm)
+        return dict(bld=ctx.bld, tx=ctx.txy, sparse=sparse, mask=mask, target=R, lossm=lossm,
+                    F=(ctx.F if arm == "cnn_feat" else None))
     T = cfg["tile"]
     for _ in range(40):
         y0 = int(rng.integers(0, H - T + 1)); x0 = int(rng.integers(0, W - T + 1))
@@ -866,11 +870,13 @@ def collate(arm, hp, cfg, items, dev):
     T = lambda a: torch.from_numpy(np.stack(a)).to(dev)
     if not is_gnn(arm):
         B, H, W = len(items), items[0]["bld"].shape[0], items[0]["bld"].shape[1]
-        x = torch.zeros(B, 4, H, W, device=dev)
+        x = torch.zeros(B, 4 + (len(FEATURE_NAMES) if arm == "cnn_feat" else 0), H, W, device=dev)
         x[:, 0] = T([it["bld"].astype(np.float32) for it in items])
         for i, it in enumerate(items):
             x[i, 1, it["tx"][0], it["tx"][1]] = 1.0
         x[:, 2] = T([it["sparse"] for it in items]); x[:, 3] = T([it["mask"] for it in items])
+        if arm == "cnn_feat":
+            x[:, 4:] = T([it["F"] for it in items])
         return dict(x=x, target=T([it["target"] for it in items]).unsqueeze(1), lossm=T([it["lossm"] for it in items]).unsqueeze(1))
     bld, los = T([it["bld"] for it in items]), T([it["los"] for it in items])
     g = build_graph(bld, los, hp["r2"], arm != "gnn_kim_oldedge")
@@ -1209,6 +1215,7 @@ FAMILIES = {
     "feat":         dict(pairs=[("rk_side", "idw")]),
     "topo":         dict(pairs=[("gnn_kim", "gnn_kim_oldedge")]),
     "deep":         dict(pairs=[("gnn_kim", "radiounet"), ("rgnn_xmap", "radiounet")], ni_margin=5.0),
+    "deep_feat":    dict(pairs=[("gnn_kim", "cnn_feat"), ("rgnn_xmap", "cnn_feat")], ni_margin=5.0),
 }
 
 

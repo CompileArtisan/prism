@@ -1,3 +1,4 @@
 {
- "radiounet": "retuned"
+ "radiounet": "retuned",
+ "cnn_feat": "retuned"
 }

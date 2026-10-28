@@ -111,3 +111,50 @@ Proposed new files (no existing file is modified): `rmbench_rms.py`, `rmbench_rm
 - 8 transmitters per training map and 3 training seeds (compute).
 - Whether to include the BRATLab replication dataset.
 - Whether the IRT subset is available in the form assumed in section 3.
+
+
+# RadioMapSeer study: addendum to `PLAN_radiomapseer_DRAFT.md` (2026-10-27)
+
+Status: **draft addendum, not frozen.** Merge into the plan file before the freeze (the notebook hashes the plan file at the freeze). Items marked *proposed* are defaults I suggest; the author decides.
+
+## 1. Arms and families (changes since the draft)
+
+| Change | Detail |
+|---|---|
+| New arm `cnn_feat` | The public RadioUNet first U with the six label-free features as 6 extra input channels (10 in total). Added 2026-10-26 (decision B). |
+| New family `deep_feat` | `gnn_kim`, `rgnn_xmap` vs `cnn_feat`; two-sided; 5% non-inferiority margin; 6 tests. |
+| Family `deep` | Kept, **descriptive** (decision B). |
+| Test count | 30 tests in 6 families (the draft had 24 in 5). Every family can reach `p_holm < 0.05` with 99 maps (min `p_holm` 1.5e-5 to 3.0e-5). |
+| Positive-GNN rule | **Unchanged.** `gnn_kim` or `rgnn_xmap` beats `rk_side` with `p_holm < 0.05`, relative gain >= 2%, bootstrap CI above 0, at >= 2 of the 3 densities, and is not significantly worse at the third. It depends on the `primary` family only. |
+
+## 2. Defect found and fixed before the freeze (2026-10-27)
+
+- **Defect.** The public `RadioWNet` (`lib/modules.py`) ends with `self.conv_up000 = convrelu(20+inputs, 1, 5, 2, 1)`, i.e. Conv -> **ReLU** -> MaxPool(1). The output of the first U is therefore never negative. The network was designed for non-negative gain images. This study trains it on a **signed** residual (observed minus the per-map trend, mean about 0), which it cannot represent: it can output 0 where the target is negative, so a large part of the residual variance is unreachable.
+- **Why it was missed.** The 2026-10-26 dev check searched `modules.py` for `sigmoid`, `tanh` and `clamp`. The squashing is an `nn.ReLU` inside `convrelu`, so the search found nothing and the README stated "no output squashing". That statement was wrong.
+- **Evidence for the mechanism (synthetic, CPU; `relu_synth_test.py`).** Signed pointwise target on 64x64 maps (55% of target pixels negative, variance 0.174), 300 steps: validation MSE 0.096 with the final ReLU (lowest output exactly 0) against 0.005 without it (lowest output -1.36). This shows the mechanism only. It says nothing yet about RadioMapSeer.
+- **Fix.** `PublicRadioUNet` removes that one ReLU and keeps everything else of the public network. A unit test (notebook section 4 (e)) asserts that a freshly built `radiounet` / `cnn_feat` can output negative values.
+- **Consequences.**
+  1. The dev-stage numbers of `radiounet` and `cnn_feat` (tuning, the 20 000-step check, the 5.4-5.6 dB plateau) came from the defective network and are **void**. The old trial files are archived as `tune_<arm>_trials_preReluFix.csv`.
+  2. `radiounet` and `cnn_feat` must be re-tuned with the same protocol (30 configurations, 1 500 steps, val maps). The freeze cell refuses to run until `results_rms/relu_fix_status.json` says both are re-tuned.
+  3. The GNN arms and the classical arms do not use this network. Their tuned hyper-parameters and dev numbers are unaffected.
+  4. The module sha256 changes (`0957f09b13a0c54e` was the pre-fix hash). The frozen plan will store the final hash.
+  5. Forking-path disclosure: the defect was found after seeing val results; the fix and the re-tuning use val maps only; no test map has been read.
+
+## 3. Work order before the freeze (notebook flags)
+
+1. `RUN_CNN_FIXCHECK = True` (about 10 min on a T4): default-hp `cnn_feat` and `radiounet` after the fix, plus a tiny-pool overfit test. Pre-fix trial-0 reference: 5.585 / 5.596 dB.
+2. `RETUNE_CNN_ARMS = True` (about 2 h per arm): re-tune both CNN arms.
+3. `RUN_DEV_FINALCHECK = True` (about 1.5 h): exploratory power check of `rgnn_xmap` at the final training budget, and the stride decision (section 4 below).
+4. `RUN_CHECKS = True` (notebook section 8): leak and sanity checks 1-7 must pass. Read the caveat on check 4 first.
+5. Decide the number of training seeds (3, or 1 to save about 3.5 h) and confirm the proposals below.
+6. Update this plan file, then `FREEZE` and `I_CONFIRM_SECTION_11`; commit `prereg_rms.json`, its `.sha256` and `rmbench_rms.py` to git; only then `RUN_CONFIRM`.
+
+## 4. Pre-specified decision rules (written before the runs they govern)
+
+- **Inference stride (applies to all GNN arms).** Adopt stride 32 (overlapping tiles, about 4x the GNN test pass) only if `rgnn_xmap` at stride 32 beats `rgnn_xmap` at stride 64 by more than 1% mean relative RMSE with the bootstrap CI above 0 at every density on the val maps; otherwise keep stride 64. Stride 32 on 40 val maps, 2 label draws.
+- **Status of `deep_feat`** (*proposed*). After the re-tuning, `deep_feat` stays an inferential non-inferiority family only if the re-tuned `cnn_feat` is a working baseline on the val maps, defined as: its val RMSE is below the `idw` val RMSE at every density (3.606 / 2.655 / 2.267 dB). Otherwise `deep_feat` is reported as descriptive, like `deep`, because a non-inferiority test against a baseline that does not use the labels is nearly guaranteed to pass. Decide and record this before the freeze; do not change it after the confirmatory run.
+- **No other changes.** Thresholds, densities, test maps, label draws, the 2% equivalence margin and the 5% non-inferiority margin are as in the draft.
+
+## 5. What is still not done
+
+Leak and sanity checks (section 8), the seed decision, the freeze, the confirmatory run on the 99 test maps (about 27 GPU-hours), the sensitivity analyses. None of the dev-stage numbers is evidence. If the pre-declared rule is not met, the statement is "no".

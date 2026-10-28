@@ -687,7 +687,7 @@ if nn is not None:
             return s.out(x)
 
     class PublicRadioUNet(nn.Module):
-        """Wraps RonLevie/RadioUNet lib/modules.py RadioWNet(phase='firstU') = the RadioUNet. Output = first U.
+        """Wraps RonLevie/RadioUNet lib/modules.py RadioWNet(phase='firstU') = the RadioUNet. Output = first U, WITHOUT its final ReLU (signed residual target).
            (The public forward still evaluates the detached second U; that is wasted compute, not a behaviour change.)"""
         def __init__(s, repo, cin):
             super().__init__()
@@ -697,6 +697,12 @@ if nn is not None:
             spec = importlib.util.spec_from_file_location("radiounet_public_modules", str(p))
             mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
             s.net = mod.RadioWNet(inputs=cin, phase="firstU")
+            # FIX 2026-10-27. The public first U ends in `convrelu(20 + inputs, 1, 5, 2, 1)` = Conv -> ReLU -> MaxPool(1), so its output is >= 0
+            # (it was built for non-negative gain images). Our target is a SIGNED residual after the per-map trend, which a non-negative output
+            # cannot represent (a large part of the residual variance is negative). Drop that ReLU; everything else is the public network.
+            conv_o, relu_o, pool_o = s.net.conv_up000
+            assert isinstance(relu_o, nn.ReLU), "unexpected RadioWNet layout: final layer is not Conv-ReLU-Pool"
+            s.net.conv_up000 = nn.Sequential(conv_o, pool_o)
 
         def forward(s, x):
             return s.net(x)[0]

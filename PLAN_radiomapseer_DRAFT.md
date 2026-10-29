@@ -1,160 +1,176 @@
 # RadioMapSeer study: do cross-map-trained graph models beat side-information regression-kriging?
 
-**Status: DRAFT. Nothing in this file is frozen until the hash step in section 10 is run.**
-Items marked **[CHOOSE]** are defaults I picked; change them *before* freezing. Items marked **[VERIFY]** are facts about the dataset or code that must be checked against the downloaded files, because I have not inspected them.
+**Status: PRE-FREEZE (draft). Nothing here is evidence until `results_rms/prereg_rms.json` is written, its sha256 is committed to git, and the confirmatory run has been done once.**
 
-## 0. Why this study exists (and what it can and cannot show)
+Dev-stage numbers in this repo (validation maps only) are exploratory. They are not results.
 
-The city study, the dense indoor run and Rounds 7-8 all trained each GNN **per map**, from at most a few hundred labels, for 150 steps. Every one of them lost to IDW or to `rk_side`. The published GNN radio-map papers train **across many maps** with dense ground truth and compare mostly against other neural models. This study tests that regime directly, against the classical baseline that matters (`rk_side`), on a public benchmark that RadioUNet-type models are also evaluated on.
+---
 
-It cannot fix: real-data evidence (RadioMapSeer is simulated), 6G (5.9 GHz), or the earlier forking paths (see section 9). It does not promise a positive result. The pre-declared positive result (section 2) may well come out NO, and that is a publishable outcome.
+## 1. Question
 
-## 1. Literature positioning (what Kim and Orange Labs do, and what they leave open)
+Does a graph model trained **across** training maps beat `rk_side` (ridge on label-free map features + IDW of the residual) on **held-out** building maps, at 0.5% / 2% / 5% label density?
 
-**Tania and Kim, "A GNN-Based Radio Map Construction With Uncertainty Prediction" (Asilomar 2025).**
-- Graph: one node per grid point in a block. Edge (l, k) exists iff distance <= d_th (3*sqrt(2) grid cells), **no building between them**, and **both nodes share the same LOS/NLOS state relative to the base station**. Gaussian distance weights. GATv2, 3 layers (4,4,4 heads; hidden 64/64/40), input = normalised sparse RSS (-1 where unmeasured). Trained across blocks on dense ground truth, MSE then Gaussian NLL (uncertainty).
-- Data: BRATLab Radiomap (Altair Feko, 1750 MHz band), three regions, 393 blocks of 41x41 (273 train / 60 val / 60 test), sampling rates 5-30% of block pixels.
-- Compared against: the same GNN with the older edge rule, and an SICNN (CNN). **No IDW, no kriging, no regression-kriging with LOS features.** Reported gain: ~29% lower RMSE than the old edge rule on average.
-- Open points for us: (a) the paper does not say whether blocks from the same region are kept apart between train and test, so spatial leakage cannot be ruled out from the text; (b) RMSE units are not stated in the tables, so **do not compare its numbers with ours**; (c) its sampling rates (5-30% of pixels) are far denser than our 30-300 labels per map.
+Earlier rounds (city study, dense indoor run, Rounds 7-8) trained each GNN per map from a few hundred labels. Every one lost to IDW or `rk_side`. Published GNN radio-map papers (Tania and Kim, Asilomar 2025; Bufort et al., arXiv 2501.06236) train across many maps and compare mostly against other neural or tabular models, not against IDW or regression-kriging on the same label-free features. This study builds that contrast with a Kim-style graph.
 
-**Bufort, Lebocq, Cathabard (Orange Labs), "Data-Driven Radio Propagation Modeling using GNNs" (arXiv 2501.06236).**
-- Real 4G field measurements, about 300M points, about 20,000 sites in France; 400x400 images at 5 m; training and validation sites are disjoint. Two edge sets (grid neighbours; Tx-aligned "ray" edges that **ignore buildings**), polar edge attributes, FiLM conditioning on frequency / antenna height / EIRP, 10 message-passing blocks, 1.6M parameters, about 100 h on an A100, one image per batch.
-- Reported test RMSE: 9.8 dB with ray edges vs 10.5 dB without vs 10.2 dB for a gradient-boosting tabular model (8.5 / 8.9 / 9.1 dB after an outdoor filter). They state GAT and graph-network blocks gave similar results. Compared with a legacy physical model; **no IDW / kriging baseline, no confidence intervals or paired tests.**
-- Open points for us: the gain over a feature-only GBM is about 0.3-0.7 dB (roughly 3-7%) and untested for significance; this is the realistic size of a "GNN with structure" advantage at best.
+**Pre-declared positive GNN result.** `gnn_kim` or `rgnn_xmap` beats `rk_side` in the `primary` family with:
 
-**What this means for the plan.** Both papers support "graph structure helps a GNN relative to a structure-free neural or tabular model", and both train across hundreds to thousands of maps. Neither tests a GNN against IDW or against regression-kriging on the *same* label-free features, which is exactly the contrast your own results say decides the question. This plan builds that contrast with a Kim-style graph.
+- `p_holm < 0.05`,
+- relative RMSE gain >= 2%,
+- bootstrap CI above 0,
 
-## 2. Question and pre-declared positive result
+at **at least 2 of the 3 densities**, and is not significantly worse at the third. If this is not met, the statement is "no", reported with the same weight as a yes.
 
-**Question.** Does a graph model trained across training maps beat `rk_side` (ridge on label-free map features + IDW of the residual) on held-out building maps, at 0.5% / 2% / 5% label density?
+What this study cannot fix: RadioMapSeer is simulated (no real-data evidence), it is 5.9 GHz (not 6G), and the forking paths in section 9.
 
-**Pre-declared positive GNN result [CHOOSE the thresholds].** At least one of `gnn_kim`, `rgnn_xmap` beats `rk_side` in the `primary` family with p_holm < 0.05, a relative RMSE gain of at least 2%, and a bootstrap CI above 0, at **at least 2 of the 3 densities**, and is not significantly worse than `rk_side` at the third. (Stricter than the city study, which needed one density.)
+---
 
-If this is not met, the paper's statement is "no", reported with the same weight as a yes.
+## 2. Data
 
-## 3. Data
+- **RadioMapSeer, DPM simulations.** 701 city maps x 80 transmitters, 256x256 px at 1 m, 5.9 GHz, building height 25 m, Tx/Rx height 1.5 m. Six cities (Ankara, Berlin, Glasgow, Ljubljana, London, Tel Aviv).
+- **Split by building map, never by transmitter.** Standard RadioUNet-style split (550 train / 50 val / 100 test, ordering taken from the RadioUNet loader). The confirmatory run uses **99 test maps**.
+- **Training pool.** 8 transmitters per training map (seeded draw).
+- **Unit of inference = test building map.** Average over its test transmitters and label draws.
+- **Sensitivity data.** High-fidelity IRT subset (train on DPM, evaluate on IRT), declared in advance; availability to be confirmed.
+- **Optional replication.** BRATLab Radiomap-Data, only if it can be split by area without overlap.
 
-- **Primary: RadioMapSeer, DPM simulations [VERIFY layout].** 701 city maps x 80 transmitters, 256x256 px at 1 m, 5.9 GHz, building height fixed at 25 m, Tx/Rx height 1.5 m. Maps come from OpenStreetMap, six cities (Ankara, Berlin, Glasgow, Ljubljana, London, Tel Aviv).
-- **Split by building map, never by transmitter.** Use the standard 550 train / 50 val / 100 test map split used in the RadioUNet literature **[VERIFY against the RadioUNet loader and use its ordering; if it differs, use the loader's]**. Test maps are touched once (section 10).
-- **Training pool.** 8 transmitters per training map, chosen by a seeded draw **[CHOOSE; compute-driven]**. Optional scale check: 2 / 8 / 32 transmitters per map, reported as exploratory.
-- **Secondary (sensitivity, declared now): the high-fidelity IRT subset [VERIFY counts and which version is available].** Same maps/features, evaluation only if models are trained on DPM (transfer from coarse to fine simulation).
-- **Optional replication dataset: BRATLab Radiomap-Data** (Feko, 5 bands, about 2,000 areas, as described in Kim et al.). I have not inspected it; include only if it can be split by area without overlap.
-- **Unit of inference = test building map.** Within a map, average over its test transmitters and over replicates. Because the 100 test maps come from six cities, report a city-cluster bootstrap as a sensitivity analysis (6 clusters, descriptive).
+## 3. Task
 
-## 4. Task definition
+- **Labels.** Fraction alpha of outdoor (non-building) pixels sampled uniformly at random; alpha in {0.5%, 2%, 5%}; 5 independent label draws per (map, transmitter).
+- **Test points.** All remaining outdoor pixels (random split, primary). Blocked split is a secondary analysis.
+- **Target.** Pathloss / RSS in dB. All arms predict the same quantity after the same per-map trend, fitted on that map's labels only.
+- **Label-free features** (building raster + Tx position only): log distance to Tx, LOS flag, blocked length along the Tx-Rx segment, number of building crossings, building cover within 30 m, distance to nearest building.
 
-- **Labels.** For each (map, transmitter), sample a fraction alpha of outdoor (non-building) pixels uniformly at random as labelled points. alpha in {0.5%, 2%, 5%} (about 300 / 1.2k / 3k labels; 0.5% matches the roughly-300-sample setting used with RadioUNet, 5% is the lowest rate in Kim et al.). 5 independent label draws per (map, transmitter).
-- **Test points.** All remaining outdoor pixels (random split, primary). A blocked split (contiguous held-out region) is a declared secondary analysis.
-- **Target.** Pathloss/RSS in dB as provided; all arms predict the same quantity after the same shared trend fitted on the training labels of that map only.
-- **Features (label-free, from the building raster and Tx position only):** log distance to Tx, LOS flag, blocked length along the Tx-Rx segment, number of building crossings, building cover within 30 m, distance to nearest building. (The city study's "maximum obstruction height" is dropped because all building heights are 25 m here.)
+## 4. Arms
 
-## 5. Arms
+**Classical (fit per map)**
 
-**Classical (fit per map, no cross-map training)**
-- `idw`, `krig_global` (local K-nearest kriging at 5% for cost), `rk_side` (ridge on the section-4 features + IDW of residual), `rk_gbm`.
+| Arm | Description |
+|---|---|
+| `idw` | Inverse-distance weighting |
+| `krig_global` | Local K-nearest kriging (5% for cost) |
+| `rk_side` | Ridge on the six features + IDW of the residual. **The baseline that matters.** |
+| `rk_gbm` | Gradient-boosting variant |
 
-**Learned across maps (trained on the training pool; one model per arm; alpha drawn log-uniformly in [0.3%, 6%] during training)**
-- `gnn_kim`: GATv2, 3 layers, heads (4,4,4), hidden (64,64,40) as in Kim et al., on 64x64 tiles, edge rule = distance <= 3*sqrt(2) cells AND no building between AND same LOS/NLOS state; Gaussian edge weights; input = normalised sparse labels (-1 if missing) + section-4 features. MSE loss.
-- `gnn_kim_oldedge`: same, edge rule without the LOS/NLOS-state condition (topology ablation).
-- `rgnn_xmap`: `rk_side` prediction + a correction from the `gnn_kim` graph model, trained on rk_side residuals across the training maps (the cross-map version of the Round-7 residual model; no per-map gate needed because training is cross-map).
-- `radiounet`: RadioUNet-style CNN (building map + Tx + sparse samples as input) trained from the public code on the same training pool, same alpha sampling, same loss. Report parameter count and training/inference time for every learned arm.
+**Learned across maps** (alpha drawn log-uniformly in [0.3%, 6%] during training)
 
-**Tuning budget (equal for everyone) [CHOOSE].** 30 random configurations per learned arm on the 50 val maps (learning rate, width, depth, edge radius, weight decay). Classical arms get a matching grid on val maps (ridge alpha, IDW power/K, kriging K). Defaults are trial 0. Test maps are never used for tuning, early stopping or normalisation statistics.
+| Arm | Description |
+|---|---|
+| `gnn_kim` | GATv2, 3 layers, heads (4,4,4), hidden (64,64,40), 64x64 tiles. Edge iff distance <= 3*sqrt(2) cells AND no building between AND same LOS/NLOS state. Gaussian edge weights. Input = normalised sparse labels (-1 if missing) + features. MSE loss. |
+| `gnn_kim_oldedge` | Same, without the LOS/NLOS-state edge condition (topology ablation) |
+| `rgnn_xmap` | `rk_side` prediction + correction from the `gnn_kim` graph model, trained on `rk_side` residuals across training maps |
+| `radiounet` | Public RadioUNet first U, same training pool, alpha sampling and loss |
+| `cnn_feat` | `radiounet` with the six features as extra input channels (10 in total) |
 
-**Seeds.** 3 training seeds per learned arm; metrics averaged over seeds inside a unit; seed spread reported. If compute does not allow this, fall back to 1 seed for every learned arm and say so **before** freezing.
+**Tuning budget (equal for all).** 30 random configurations per learned arm on the val maps; matching grid for classical arms. Test maps are never used for tuning, early stopping or normalisation. Report parameter count and train/inference time for every learned arm.
 
-## 6. Metrics
+**Seeds.** 3 training seeds per learned arm; fall back to 1 seed for all learned arms only if declared before the freeze.
 
-- **Primary: RMSE (dB)** on held-out outdoor pixels. Gains are relative RMSE of A vs B, positive = A better, always shown next to dB values.
-- **Coverage accuracy (M3 requirement): `bacc_q25`**, the same single coverage metric as the dense indoor run (threshold from the training labels of that map).
-- Secondary, descriptive: MAE; RMSE by LOS vs NLOS pixels; RMSE within 10 m of a building edge.
+## 5. Metrics
 
-## 7. Statistics and families
+- **Primary:** RMSE (dB) on held-out outdoor pixels. Relative gain of A vs B, positive = A better, always shown next to dB values.
+- **Coverage:** `bacc_q25` (threshold from that map's training labels).
+- **Secondary (descriptive):** MAE; RMSE on LOS vs NLOS pixels; RMSE within 10 m of a building edge.
 
-Paired across test maps. Exact sign-flip p, bootstrap CI over maps, verdict labels (`A better` / `A worse` / `equivalent` within +/-2% / `inconclusive`), **Holm within each family**. Same conventions as the city study.
+## 6. Statistics and families
 
-| Family | Contrasts (each at 0.5% / 2% / 5%) | Tests |
-|---|---|---|
-| `primary` | `gnn_kim` vs `rk_side`; `rgnn_xmap` vs `rk_side` | 6 |
-| `vs_classical` | `gnn_kim` vs `idw`; `rgnn_xmap` vs `idw` | 6 |
-| `feat` | `rk_side` vs `idw` | 3 |
-| `topo` | `gnn_kim` vs `gnn_kim_oldedge` | 3 |
-| `deep` (two-sided; non-inferiority margin 5% RMSE) | `gnn_kim` vs `radiounet`; `rgnn_xmap` vs `radiounet` | 6 |
+Paired across test maps. Exact sign-flip p, bootstrap CI over maps, verdict labels (`A better` / `A worse` / `equivalent` within +/-2% / `inconclusive`), **Holm within each family**. City-cluster bootstrap (6 clusters) as a descriptive sensitivity analysis.
 
-Total 24 tests. Anything not in this table is exploratory and labelled so in the paper. Before freezing, the freeze step checks that each family can reach p_holm < 0.05 with 100 maps.
+| Family | Contrasts (each at 0.5 / 2 / 5%) | Tests | Status |
+|---|---|---|---|
+| `primary` | `gnn_kim` vs `rk_side`; `rgnn_xmap` vs `rk_side` | 6 | Inferential. Decides the positive-GNN rule |
+| `vs_classical` | `gnn_kim` vs `idw`; `rgnn_xmap` vs `idw` | 6 | Inferential |
+| `feat` | `rk_side` vs `idw` | 3 | Inferential |
+| `topo` | `gnn_kim` vs `gnn_kim_oldedge` | 3 | Inferential |
+| `deep` | `gnn_kim`, `rgnn_xmap` vs `radiounet` | 6 | **Descriptive** |
+| `deep_feat` | `gnn_kim`, `rgnn_xmap` vs `cnn_feat` | 6 | Inferential, two-sided, 5% non-inferiority margin (see section 7) |
+
+**Total: 30 tests in 6 families.** Every family can reach `p_holm < 0.05` with 99 maps (min `p_holm` about 1.5e-5 to 3.0e-5). Anything not in this table is exploratory and labelled so.
+
+## 7. Pre-specified decision rules
+
+Written before the runs they govern.
+
+- **Inference stride (all GNN arms).** Adopt stride 32 only if `rgnn_xmap` at stride 32 beats stride 64 by more than 1% mean relative RMSE with bootstrap CI above 0 at every density on val maps. Otherwise keep stride 64. **Outcome: 0.27 / 0.54 / 0.44% gain, so stride 64 is kept.**
+- **Status of `deep_feat`.** It stays inferential only if the re-tuned `cnn_feat` beats `idw` on val maps at every density (3.606 / 2.655 / 2.267 dB). **Outcome: it does, so `deep_feat` stays inferential.** Stated before the confirmatory run: on dev numbers the GNNs are 10-16% worse than `cnn_feat`, so `deep_feat` is expected to show them significantly worse.
+- **No other changes.** Thresholds, densities, test maps, label draws, the 2% equivalence margin and the 5% non-inferiority margin are fixed.
 
 ## 8. Leak and sanity checks (must pass before the test run)
 
-1. No test map or test transmitter appears in the training, tuning or normalisation data (assert on map ids).
+1. No test map or test transmitter in training, tuning or normalisation data (assert on map ids).
 2. Features use no power value, only the building raster and Tx position.
 3. Per-map trend, ridge and IDW parameters are fit on that map's labels only.
-4. Shuffled-label control: train `gnn_kim` with labels permuted across pixels; its test RMSE must be at least as bad as `idw`.
-5. Zero-label control: a model given no labels must not beat the trend-only baseline by more than what the features alone give (`rk_side` with n=0 labels).
+4. Shuffled-label control: `gnn_kim` trained on permuted labels must test at least as badly as `idw`. (Read the caveat on this check in the notebook first.)
+5. Zero-label control: a model given no labels must not beat `rk_side` with n=0 labels by more than the features alone give.
 6. Edge-rule unit test on a toy map: no edge crosses a building and no edge joins a LOS and an NLOS node.
+7. See notebook section 8 (the addendum refers to checks 1-7; the plan draft listed 1-6).
+
+Also: unit test (notebook section 4 (e)) asserting that a freshly built `radiounet` / `cnn_feat` can output negative values.
 
 ## 9. Disclosure of forking paths
 
-This plan was designed **after** seeing: the negative city and dense-indoor results, the Round-7/8 results (including the unconfirmed `rattn` lead on dev and val cities), and after reading Kim et al. and Bufort et al. The design choices that came from that: cross-map training, the Kim edge rule, and the residual-on-`rk_side` arm. `rattn` is not included here; if it is to be confirmed, it gets its own one-contrast plan on fresh city data. The supplement table of rounds lists, for each round, the date, what had been seen before designing it, and the number of contrasts.
+- The plan was designed **after** seeing the negative city and dense-indoor results, the Round-7/8 results (including the unconfirmed `rattn` lead), and after reading Kim et al. and Bufort et al. Design choices that came from that: cross-map training, the Kim edge rule, the residual-on-`rk_side` arm.
+- `rattn` is **not** included. If it is to be confirmed, it gets its own one-contrast plan on fresh data.
+- `cnn_feat` and `deep_feat` were added on 2026-10-26 (decision B), after dev results.
+- **Defect found 2026-10-27 (before the freeze).** The public `RadioWNet` ends with `convrelu(20+inputs, 1, 5, 2, 1)`, i.e. Conv -> ReLU, so its output is never negative. It cannot represent the signed residual used here. The earlier dev check searched only for `sigmoid`, `tanh` and `clamp` and missed it, so the README then wrongly said "no output squashing". Synthetic evidence for the mechanism: validation MSE 0.096 with the final ReLU vs 0.005 without (`relu_synth_test.py`).
+  - Fix: `PublicRadioUNet` removes that one ReLU, nothing else.
+  - All earlier dev numbers for `radiounet` / `cnn_feat` are **void** (old trial files archived as `tune_<arm>_trials_preReluFix.csv`).
+  - Both arms were re-tuned with the same protocol. GNN and classical arms are unaffected.
+  - The fix and re-tuning used val maps only. No test map has been read.
+  - The module sha256 changed (`0957f09b13a0c54e` was the pre-fix hash); the frozen plan stores the final hash.
+- The supplement table of rounds lists, for each round, the date, what had been seen before designing it, and the number of contrasts.
 
-## 10. Procedure
+## 10. Dev-stage outcomes so far (val maps only; not evidence)
 
-1. **Dev stage (val maps only, exploratory).** Build and debug the arms; tune on the 50 val maps; nothing here is reported as evidence.
-2. **Freeze.** Write the config (arms, hyper-parameters chosen on val, families, thresholds, test map ids, seeds, label-draw salts) to `results_rms/prereg_rms.json`; store its sha256; commit to git **before** the test run. The runner refuses to start without the file and refuses to overwrite it.
-3. **Confirmatory run.** One run on the 100 test maps. No arm, threshold or family may change afterwards.
-4. **Report.** All 24 contrasts printed, wins and losses, with dB values, CIs and Holm p. Sensitivity analyses (IRT subset, blocked split, city-cluster bootstrap) after the primary tables.
-
-Proposed new files (no existing file is modified): `rmbench_rms.py`, `rmbench_rms.ipynb`, `results_rms/`.
-
-## 11. Decisions to confirm before freezing
-
-- Pre-declared threshold (2 of 3 densities, >= 2% gain) and the 5% non-inferiority margin versus RadioUNet.
-- 8 transmitters per training map and 3 training seeds (compute).
-- Whether to include the BRATLab replication dataset.
-- Whether the IRT subset is available in the form assumed in section 3.
-
-
-# RadioMapSeer study: addendum to `PLAN_radiomapseer_DRAFT.md` (2026-10-27)
-
-Status: **draft addendum, not frozen.** Merge into the plan file before the freeze (the notebook hashes the plan file at the freeze). Items marked *proposed* are defaults I suggest; the author decides.
-
-## 1. Arms and families (changes since the draft)
-
-| Change | Detail |
+| Item | Result |
 |---|---|
-| New arm `cnn_feat` | The public RadioUNet first U with the six label-free features as 6 extra input channels (10 in total). Added 2026-10-26 (decision B). |
-| New family `deep_feat` | `gnn_kim`, `rgnn_xmap` vs `cnn_feat`; two-sided; 5% non-inferiority margin; 6 tests. |
-| Family `deep` | Kept, **descriptive** (decision B). |
-| Test count | 30 tests in 6 families (the draft had 24 in 5). Every family can reach `p_holm < 0.05` with 99 maps (min `p_holm` 1.5e-5 to 3.0e-5). |
-| Positive-GNN rule | **Unchanged.** `gnn_kim` or `rgnn_xmap` beats `rk_side` with `p_holm < 0.05`, relative gain >= 2%, bootstrap CI above 0, at >= 2 of the 3 densities, and is not significantly worse at the third. It depends on the `primary` family only. |
+| Fix check, default hp, 1 500 steps | `cnn_feat` 5.585 -> 2.972 dB; `radiounet` 5.596 -> 2.950 dB. Overfit test on 4 pairs: 1.776 dB vs trend-only 6.747 dB (ratio 0.26, passes) |
+| Re-tuned `radiounet` (trial 20) | 3.007 / 2.251 / 2.014 dB at 0.5 / 2 / 5% labels |
+| Re-tuned `cnn_feat` (trial 1) | 2.184 / 1.818 / 1.700 dB |
+| `rk_side` reference | 2.854 / 2.352 / 2.123 dB |
+| `idw` reference | 3.606 / 2.655 / 2.267 dB |
+| `rgnn_xmap`, 8 000 steps, 1 seed, 100 val maps, 2 draws | 2.594 / 2.084 / 1.887 dB vs `rk_side` 2.848 / 2.354 / 2.122; gains 8.7 / 11.1 / 10.6% (CI over maps 8.0-9.3 / 10.4-11.7 / 9.9-11.3; better on 99% of maps) |
 
-## 2. Defect found and fixed before the freeze (2026-10-27)
+Caveats: single 1 500-step runs are noisy (same default `cnn_feat` config gave 2.972 dB in the fix check and 3.386 dB as tuning trial 0). The `rgnn_xmap` numbers are optimistic (val maps were tuned on, one seed). The positive rule would be met on these numbers; this is not evidence.
 
-- **Defect.** The public `RadioWNet` (`lib/modules.py`) ends with `self.conv_up000 = convrelu(20+inputs, 1, 5, 2, 1)`, i.e. Conv -> **ReLU** -> MaxPool(1). The output of the first U is therefore never negative. The network was designed for non-negative gain images. This study trains it on a **signed** residual (observed minus the per-map trend, mean about 0), which it cannot represent: it can output 0 where the target is negative, so a large part of the residual variance is unreachable.
-- **Why it was missed.** The 2026-10-26 dev check searched `modules.py` for `sigmoid`, `tanh` and `clamp`. The squashing is an `nn.ReLU` inside `convrelu`, so the search found nothing and the README stated "no output squashing". That statement was wrong.
-- **Evidence for the mechanism (synthetic, CPU; `relu_synth_test.py`).** Signed pointwise target on 64x64 maps (55% of target pixels negative, variance 0.174), 300 steps: validation MSE 0.096 with the final ReLU (lowest output exactly 0) against 0.005 without it (lowest output -1.36). This shows the mechanism only. It says nothing yet about RadioMapSeer.
-- **Fix.** `PublicRadioUNet` removes that one ReLU and keeps everything else of the public network. A unit test (notebook section 4 (e)) asserts that a freshly built `radiounet` / `cnn_feat` can output negative values.
-- **Consequences.**
-  1. The dev-stage numbers of `radiounet` and `cnn_feat` (tuning, the 20 000-step check, the 5.4-5.6 dB plateau) came from the defective network and are **void**. The old trial files are archived as `tune_<arm>_trials_preReluFix.csv`.
-  2. `radiounet` and `cnn_feat` must be re-tuned with the same protocol (30 configurations, 1 500 steps, val maps). The freeze cell refuses to run until `results_rms/relu_fix_status.json` says both are re-tuned.
-  3. The GNN arms and the classical arms do not use this network. Their tuned hyper-parameters and dev numbers are unaffected.
-  4. The module sha256 changes (`0957f09b13a0c54e` was the pre-fix hash). The frozen plan will store the final hash.
-  5. Forking-path disclosure: the defect was found after seeing val results; the fix and the re-tuning use val maps only; no test map has been read.
+---
 
-## 3. Work order before the freeze (notebook flags)
+## 11. Repository layout
 
-1. `RUN_CNN_FIXCHECK = True` (about 10 min on a T4): default-hp `cnn_feat` and `radiounet` after the fix, plus a tiny-pool overfit test. Pre-fix trial-0 reference: 5.585 / 5.596 dB.
-2. `RETUNE_CNN_ARMS = True` (about 2 h per arm): re-tune both CNN arms.
-3. `RUN_DEV_FINALCHECK = True` (about 1.5 h): exploratory power check of `rgnn_xmap` at the final training budget, and the stride decision (section 4 below).
-4. `RUN_CHECKS = True` (notebook section 8): leak and sanity checks 1-7 must pass. Read the caveat on check 4 first.
-5. Decide the number of training seeds (3, or 1 to save about 3.5 h) and confirm the proposals below.
-6. Update this plan file, then `FREEZE` and `I_CONFIRM_SECTION_11`; commit `prereg_rms.json`, its `.sha256` and `rmbench_rms.py` to git; only then `RUN_CONFIRM`.
+| Path | Purpose |
+|---|---|
+| `PLAN_radiomapseer_DRAFT.md` | Study plan (merge the addendum in before the freeze; the notebook hashes this file at the freeze) |
+| `rmbench_rms.py` | Benchmark code (committed with the freeze) |
+| `rmbench_rms.ipynb` | Notebook driving dev, checks, freeze and confirmatory run |
+| `relu_synth_test.py` | Synthetic CPU test of the final-ReLU mechanism |
+| `results_rms/` | All outputs |
+| `results_rms/relu_fix_status.json` | Records that both CNN arms were re-tuned; the freeze cell refuses to run without it |
+| `results_rms/tune_<arm>_trials*.csv` | Tuning trials (`..._preReluFix.csv` = void, archived) |
+| `results_rms/prereg_rms.json` | Frozen config (+ `.sha256`). Runner refuses to start without it and refuses to overwrite it |
 
-## 4. Pre-specified decision rules (written before the runs they govern)
+## 12. Procedure and notebook flags
 
-- **Inference stride (applies to all GNN arms).** Adopt stride 32 (overlapping tiles, about 4x the GNN test pass) only if `rgnn_xmap` at stride 32 beats `rgnn_xmap` at stride 64 by more than 1% mean relative RMSE with the bootstrap CI above 0 at every density on the val maps; otherwise keep stride 64. Stride 32 on 40 val maps, 2 label draws.
-- **Status of `deep_feat`** (*proposed*). After the re-tuning, `deep_feat` stays an inferential non-inferiority family only if the re-tuned `cnn_feat` is a working baseline on the val maps, defined as: its val RMSE is below the `idw` val RMSE at every density (3.606 / 2.655 / 2.267 dB). Otherwise `deep_feat` is reported as descriptive, like `deep`, because a non-inferiority test against a baseline that does not use the labels is nearly guaranteed to pass. Decide and record this before the freeze; do not change it after the confirmatory run.
-- **No other changes.** Thresholds, densities, test maps, label draws, the 2% equivalence margin and the 5% non-inferiority margin are as in the draft.
+Run in this order. Set the flag, run its cell.
 
-## 5. What is still not done
+1. `RUN_CNN_FIXCHECK` - default-hp CNN arms after the fix + tiny-pool overfit test (about 10 min on a T4). **Done.**
+2. `RETUNE_CNN_ARMS` - re-tune `radiounet` and `cnn_feat` (about 2 h per arm). **Done.**
+3. `RUN_DEV_FINALCHECK` - power check of `rgnn_xmap` at final budget + stride decision (about 1.5 h). **Done.**
+4. `RUN_CHECKS` - leak and sanity checks (section 8). **To do.**
+5. Decide seeds (3, or 1 to save about 3.5 h) and confirm section 13. **To do.**
+6. Merge the addendum into the plan file. **To do.**
+7. `FREEZE` and `I_CONFIRM_SECTION_11` - write `prereg_rms.json` and its sha256; commit `prereg_rms.json`, `.sha256` and `rmbench_rms.py` to git **before** the test run.
+8. `RUN_CONFIRM` - one run on the 99 test maps (about 27 GPU-hours). No arm, threshold or family may change afterwards.
+9. Report all 30 contrasts, wins and losses, with dB values, CIs and Holm p. Sensitivity analyses (IRT subset, blocked split, city-cluster bootstrap) after the primary tables.
 
-Leak and sanity checks (section 8), the seed decision, the freeze, the confirmatory run on the 99 test maps (about 27 GPU-hours), the sensitivity analyses. None of the dev-stage numbers is evidence. If the pre-declared rule is not met, the statement is "no".
+## 13. Decisions to confirm before freezing
+
+- Positive-result threshold (2 of 3 densities, >= 2% gain) and the 5% non-inferiority margin.
+- 8 transmitters per training map; 3 training seeds vs 1.
+- Whether to include the BRATLab replication dataset.
+- Whether the IRT subset is available in the form assumed.
+
+## 14. Literature notes
+
+Numbers from these papers are **not** comparable with ours (different data, units, label densities).
+
+- **Tania and Kim (Asilomar 2025).** GATv2 on 41x41 blocks, edge rule as in `gnn_kim`, BRATLab/Feko data, 5-30% sampling. Compared only against an older edge rule and an SICNN; no IDW or kriging. Does not state whether same-region blocks are kept apart between train and test.
+- **Bufort, Lebocq, Cathabard (arXiv 2501.06236).** Real 4G data, about 20,000 sites, 10 message-passing blocks. Test RMSE 9.8 dB (ray edges) vs 10.5 dB (without) vs 10.2 dB (GBM): a gain of about 0.3-0.7 dB (3-7%), untested for significance. This is the realistic size of a structural GNN advantage.

@@ -1,0 +1,75 @@
+{
+ "1_no_test_map_in_train_tune_ckpt": true,
+ "2_features_computed_without_gain_images": true,
+ "3_prediction_independent_of_unlabelled_pixel_values": true,
+ "3_detail": {
+  "idw@0.005": true,
+  "idw@0.02": true,
+  "idw@0.05": true,
+  "krig_global@0.005": true,
+  "krig_global@0.02": true,
+  "krig_global@0.05": true,
+  "rk_side@0.005": true,
+  "rk_side@0.02": true,
+  "rk_side@0.05": true,
+  "rk_gbm@0.005": true,
+  "rk_gbm@0.02": true,
+  "rk_gbm@0.05": true,
+  "gnn_kim@0.005": true,
+  "gnn_kim@0.02": true,
+  "gnn_kim@0.05": true,
+  "gnn_kim_oldedge@0.005": true,
+  "gnn_kim_oldedge@0.02": true,
+  "gnn_kim_oldedge@0.05": true,
+  "rgnn_xmap@0.005": true,
+  "rgnn_xmap@0.02": true,
+  "rgnn_xmap@0.05": true,
+  "radiounet@0.005": true,
+  "radiounet@0.02": true,
+  "radiounet@0.05": true,
+  "cnn_feat@0.005": true,
+  "cnn_feat@0.02": true,
+  "cnn_feat@0.05": true
+ },
+ "6_edge_rule_unit_test": true,
+ "7_rgnn_at_init_equals_rk_side": true,
+ "4_shuffled_label_literal_rule_not_better_than_idw": true,
+ "4_shuffled_not_better_than_zero_label_model": true,
+ "4_gate": true,
+ "5_zero_label_not_much_better_than_features_alone": true,
+ "5_detail": {
+  "zero_label_val_rmse": 3.676327271601186,
+  "features_gbm_rmse": 4.040386177809509,
+  "trend_only_rmse": 9.838303565979004
+ },
+ "table": {
+  "0.005": {
+   "gnn_kim (normal labels)": 3.3021,
+   "gnn_kim shuffled labels": 5.4898,
+   "gnn_kim zero labels": 3.6763,
+   "idw (true labels)": 3.6059
+  },
+  "0.02": {
+   "gnn_kim (normal labels)": 2.4394,
+   "gnn_kim shuffled labels": 5.0936,
+   "gnn_kim zero labels": 3.6763,
+   "idw (true labels)": 2.6551
+  },
+  "0.05": {
+   "gnn_kim (normal labels)": 2.2182,
+   "gnn_kim shuffled labels": 4.7657,
+   "gnn_kim zero labels": 3.6763,
+   "idw (true labels)": 2.2674
+  }
+ },
+ "passed": true,
+ "gates": {
+  "1_no_test_map_in_train_tune_ckpt": true,
+  "2_features_computed_without_gain_images": true,
+  "3_prediction_independent_of_unlabelled_pixel_values": true,
+  "4_gate": true,
+  "5_zero_label_not_much_better_than_features_alone": true,
+  "6_edge_rule_unit_test": true,
+  "7_rgnn_at_init_equals_rk_side": true
+ }
+}

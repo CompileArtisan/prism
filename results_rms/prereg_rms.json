@@ -1,0 +1,393 @@
+{
+ "cfg": {
+  "H": 256,
+  "alphas": [
+   0.005,
+   0.02,
+   0.05
+  ],
+  "block": 64,
+  "ckpt_every": 500,
+  "ckpt_val_maps": 12,
+  "classical_hp": {
+   "idw": {
+    "K": 8,
+    "p": 2.0
+   },
+   "krig_global": {
+    "K": 32,
+    "global_max_n": 1500
+   },
+   "rk_gbm": {
+    "K": 8,
+    "lr": 0.05,
+    "max_iter": 50,
+    "p": 2.0
+   },
+   "rk_side": {
+    "K": 8,
+    "p": 1.5,
+    "ridge": 1.0
+   }
+  },
+  "data_root": "/kaggle/input/datasets/compileartisan/radiomapseer",
+  "db_hi": -47.84,
+  "db_lo": -147.0,
+  "device": "auto",
+  "final_steps": 8000,
+  "floor_mode": "clip",
+  "gnn_batch": 4,
+  "gnn_hp": {
+   "depth": 3,
+   "lr": 0.001,
+   "r2": 18.0,
+   "wd": 1e-05,
+   "width": 64
+  },
+  "gnn_infer_tiles": 4,
+  "min_labels": 8,
+  "n_draws": 5,
+  "n_jobs": 4,
+  "n_seeds": 3,
+  "n_tx_test": 4,
+  "n_tx_total": 80,
+  "n_tx_train": 8,
+  "n_workers_data": 2,
+  "noise_floor_pix": 51.0,
+  "out_dir": "results_rms",
+  "radiounet_batch": 4,
+  "radiounet_hp": {
+   "base": 32,
+   "depth": 4,
+   "lr": 0.0001,
+   "wd": 0.0
+  },
+  "radiounet_impl": "public",
+  "radiounet_repo": "RadioUNet",
+  "res_scale": 10.0,
+  "salt": "rms1",
+  "sim": "DPM",
+  "split_source": "loader",
+  "stride": 64,
+  "synthetic": false,
+  "tile": 64,
+  "train_alpha_range": [
+   0.003,
+   0.06
+  ],
+  "tune_n_cfg": 30,
+  "tune_steps": 1500,
+  "tune_val_maps": 100
+ },
+ "checks": {
+  "1_no_test_map_in_train_tune_ckpt": true,
+  "2_features_computed_without_gain_images": true,
+  "3_prediction_independent_of_unlabelled_pixel_values": true,
+  "4_gate": true,
+  "5_zero_label_not_much_better_than_features_alone": true,
+  "6_edge_rule_unit_test": true,
+  "7_rgnn_at_init_equals_rk_side": true
+ },
+ "deviations": [
+  "split 501/100/99 from the RadioUNet loader (plan: 550/50/100)",
+  "labels encoded as (scaled residual, mask) instead of a -1 sentinel",
+  "radiounet = public RadioWNet(phase=firstU), 4 input channels, trained with this pipeline, with the final ReLU of the public network removed (2026-10-27: it forced non-negative outputs, impossible for a signed residual; found after the 2026-10-26 dev check; radiounet and cnn_feat were re-tuned after the fix)",
+  "cnn_feat (added after the dev check) = the same network with the 6 label-free features as 6 extra input channels (10 in total); family deep_feat (gnn_kim, rgnn_xmap vs cnn_feat, two-sided, 5% non-inferiority margin) added; total 30 tests",
+  "the 2026-10-26 radiounet dev check (20000 steps, val maps, plateau 5.55 dB) was run on the pre-fix network and is void; family deep is reported but is descriptive, not a claim about RadioUNet in general",
+  "non-overlapping 64x64 tiles at inference",
+  "Monte-Carlo sign-flip tests (200000 flips)",
+  "krig_global: all labels if <=1500 else 16 nearest",
+  "fixed normalisation constants",
+  "n_tx_test and n_draws are my choices",
+  "bacc_q25 contrasts exploratory",
+  "checks 4 and 5 operationalised as described in section 8; both passed on val maps, check 5 narrowly (zero-label gnn_kim 3.676 dB vs the threshold 3.636 dB = 0.9 x 4.040 dB of the feature-only GBM); controls run for gnn_kim only",
+  "stride 32 vs 64 decided on val maps by a rule fixed beforehand (keep 64); dev power check of rgnn_xmap (8000 steps, 1 seed) gave 8.7 / 11.1 / 10.6% over rk_side on val maps, optimistic, not evidence; cnn_feat was tuned for 1500 steps only and beat the GNNs on val maps, so deep_feat is expected to show them worse",
+  "pixel->dB mapping unverified (rescales dB only)",
+  "noise-floor clipping per RadioUNet loader (floor_mode=clip)"
+ ],
+ "families": {
+  "deep": {
+   "ni_margin": 5.0,
+   "pairs": [
+    [
+     "gnn_kim",
+     "radiounet"
+    ],
+    [
+     "rgnn_xmap",
+     "radiounet"
+    ]
+   ]
+  },
+  "deep_feat": {
+   "ni_margin": 5.0,
+   "pairs": [
+    [
+     "gnn_kim",
+     "cnn_feat"
+    ],
+    [
+     "rgnn_xmap",
+     "cnn_feat"
+    ]
+   ]
+  },
+  "feat": {
+   "pairs": [
+    [
+     "rk_side",
+     "idw"
+    ]
+   ]
+  },
+  "primary": {
+   "pairs": [
+    [
+     "gnn_kim",
+     "rk_side"
+    ],
+    [
+     "rgnn_xmap",
+     "rk_side"
+    ]
+   ]
+  },
+  "topo": {
+   "pairs": [
+    [
+     "gnn_kim",
+     "gnn_kim_oldedge"
+    ]
+   ]
+  },
+  "vs_classical": {
+   "pairs": [
+    [
+     "gnn_kim",
+     "idw"
+    ],
+    [
+     "rgnn_xmap",
+     "idw"
+    ]
+   ]
+  }
+ },
+ "feasibility": [
+  {
+   "family": "primary",
+   "feasible": true,
+   "min_p_holm": 2.9999850000749997e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 6
+  },
+  {
+   "family": "vs_classical",
+   "feasible": true,
+   "min_p_holm": 2.9999850000749997e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 6
+  },
+  {
+   "family": "feat",
+   "feasible": true,
+   "min_p_holm": 1.4999925000374999e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 3
+  },
+  {
+   "family": "topo",
+   "feasible": true,
+   "min_p_holm": 1.4999925000374999e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 3
+  },
+  {
+   "family": "deep",
+   "feasible": true,
+   "min_p_holm": 2.9999850000749997e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 6
+  },
+  {
+   "family": "deep_feat",
+   "feasible": true,
+   "min_p_holm": 2.9999850000749997e-05,
+   "min_p_raw": 4.9999750001249995e-06,
+   "n_maps": 99,
+   "n_tests": 6
+  }
+ ],
+ "forking_paths": "This plan was designed AFTER seeing: the negative city and dense-indoor results, the Round-7/8 results (including the unconfirmed rattn lead on dev and val cities), and after reading Kim et al. and Bufort et al. Design choices that came from that: cross-map training, the Kim edge rule, and the residual-on-rk_side arm. rattn is not included. After the first CNN dev results, a final-ReLU defect of the public RadioUNet was found and fixed, and the two CNN arms were re-tuned (val maps only). The dev-stage power check of rgnn_xmap (section 6c) and the stride decision rule were run on val maps only. Dev-stage tuning of this study used val maps only; test maps are untouched at the time of the freeze.",
+ "frozen_at": "2026-10-29 06:15:12",
+ "label_salt": "rms1",
+ "learned_hp": {
+  "cnn_feat": {
+   "base": 32,
+   "depth": 4,
+   "lr": 0.00048734411563703127,
+   "wd": 1.2563657132037324e-05
+  },
+  "gnn_kim": {
+   "depth": 4,
+   "lr": 0.002725187908178135,
+   "r2": 32.0,
+   "wd": 1.9591072431339947e-05,
+   "width": 96
+  },
+  "gnn_kim_oldedge": {
+   "depth": 4,
+   "lr": 0.002676503523541172,
+   "r2": 18.0,
+   "wd": 0.0006855653217011095,
+   "width": 96
+  },
+  "radiounet": {
+   "base": 32,
+   "depth": 4,
+   "lr": 0.0004350003036097231,
+   "wd": 9.400728069522365e-05
+  },
+  "rgnn_xmap": {
+   "depth": 2,
+   "lr": 0.0023792321227070505,
+   "r2": 18.0,
+   "wd": 1.867537039255274e-06,
+   "width": 96
+  }
+ },
+ "module_sha256": "0896363c77b45520931528588c1f2feaa86af1d04598aa294366d7beed4b2cd5",
+ "plan_file_sha256": "000e127df71ebe349d9e9873c94587e8299bf270fd6ee97ff18015d4f8ec102d",
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "smoke": false,
+ "split_ids_sha256": 3030287976996115819,
+ "splits": {
+  "n_train": 501,
+  "n_val": 100,
+  "test": [
+   419,
+   392,
+   593,
+   499,
+   139,
+   63,
+   472,
+   129,
+   681,
+   521,
+   65,
+   15,
+   157,
+   41,
+   493,
+   380,
+   188,
+   217,
+   53,
+   338,
+   296,
+   252,
+   462,
+   456,
+   698,
+   270,
+   202,
+   162,
+   556,
+   402,
+   477,
+   106,
+   566,
+   390,
+   2,
+   654,
+   562,
+   81,
+   206,
+   35,
+   509,
+   428,
+   455,
+   367,
+   92,
+   340,
+   565,
+   346,
+   242,
+   14,
+   316,
+   601,
+   388,
+   274,
+   167,
+   695,
+   647,
+   485,
+   684,
+   505,
+   244,
+   567,
+   563,
+   190,
+   476,
+   511,
+   59,
+   475,
+   561,
+   253,
+   22,
+   314,
+   460,
+   161,
+   277,
+   192,
+   386,
+   414,
+   492,
+   344,
+   309,
+   662,
+   131,
+   664,
+   100,
+   373,
+   88,
+   459,
+   331,
+   215,
+   467,
+   122,
+   615,
+   21,
+   72,
+   107,
+   271,
+   436,
+   103
+  ]
+ },
+ "stat": {
+  "alpha": 0.05,
+  "margin": 2.0,
+  "n_boot": 10000,
+  "n_perm": 200000,
+  "ni_margin": 5.0,
+  "seed": 20261022
+ },
+ "thresholds": {
+  "deep_noninferiority_margin_pct": 5.0,
+  "equivalence_margin_pct": 2.0,
+  "min_densities": 2,
+  "min_gain_pct": 2.0
+ },
+ "title": "RadioMapSeer cross-map GNN vs rk_side"
+}

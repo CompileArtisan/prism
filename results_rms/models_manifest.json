@@ -1,15 +1,39 @@
 {
  "cnn_feat_s0.pt": {
   "bytes": 53191943,
-  "sha256": "33baa3cbd262c6c60ecce26432b45ca427c7482c18a7abea2513fdd91d4e3f88"
+  "file_mtime_utc": "2026-11-01 06:46:52",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "0a6e9000f9befb3247a3a3909a91e523f923caf3c6ea3a83cab879ad785093d3",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "33baa3cbd262c6c60ecce26432b45ca427c7482c18a7abea2513fdd91d4e3f88"
+   }
+  ]
  },
  "cnn_feat_s1.pt": {
   "bytes": 53191943,
-  "sha256": "fb41f0c1b3e2b78c8cd416217c64e1d31c9e4ebc36b3371db66a3d660c165c90"
+  "file_mtime_utc": "2026-11-01 07:08:04",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "0394cd0266b9ddfdf6e0495f8091efd64d2dfea700611590659421d86dd882ea",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "fb41f0c1b3e2b78c8cd416217c64e1d31c9e4ebc36b3371db66a3d660c165c90"
+   }
+  ]
  },
  "cnn_feat_s2.pt": {
   "bytes": 53191943,
-  "sha256": "e75245cc397c3473e94736082b92d2882d35379f0e5270eded1f0087a3dd5729"
+  "file_mtime_utc": "2026-11-01 07:29:17",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "509cebf64088a3f75143842596fadfec4bd4f7e7de30f287fa481cb00f7dcaee",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "e75245cc397c3473e94736082b92d2882d35379f0e5270eded1f0087a3dd5729"
+   }
+  ]
  },
  "gnn_kim_oldedge_s0.pt": {
   "bytes": 218197,
@@ -37,15 +61,39 @@
  },
  "radiounet_s0.pt": {
   "bytes": 53160409,
-  "sha256": "22013894c3d16db7ed3d4aaae7a93cb07626dca13aac97e55b3b9543bdd3cbcb"
+  "file_mtime_utc": "2026-11-01 05:46:19",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "919c8a58347bb0456fd19c5ad742069c9cdd58861b9db6c1946b21974757991b",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "22013894c3d16db7ed3d4aaae7a93cb07626dca13aac97e55b3b9543bdd3cbcb"
+   }
+  ]
  },
  "radiounet_s1.pt": {
   "bytes": 53160409,
-  "sha256": "6fcadbc7b12aa256fd31c149d65332fd0932a4bf92781d0fc3caf4558d9b6b56"
+  "file_mtime_utc": "2026-11-01 06:05:59",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "0c56134ad29efe9feca2891582c660ea1a21e8a453142f397b87a8118e4b00b3",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "6fcadbc7b12aa256fd31c149d65332fd0932a4bf92781d0fc3caf4558d9b6b56"
+   }
+  ]
  },
  "radiounet_s2.pt": {
   "bytes": 53160409,
-  "sha256": "d6903ebbc4fcf96299cae5139cf564f1cc53314561bd8e51be4abab68a4f9c54"
+  "file_mtime_utc": "2026-11-01 06:25:40",
+  "first_seen_utc": "2026-11-01 07:29:19",
+  "sha256": "517baace42b99845353eead05b708e405a36c8ccd2d63f5afddf4f8d30252884",
+  "superseded": [
+   {
+    "first_seen_utc": null,
+    "sha256": "d6903ebbc4fcf96299cae5139cf564f1cc53314561bd8e51be4abab68a4f9c54"
+   }
+  ]
  },
  "rgnn_xmap_s0.pt": {
   "bytes": 62945,
